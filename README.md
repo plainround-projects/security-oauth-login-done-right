@@ -8,6 +8,7 @@ Sign-in for a small server-side app with an identity provider you run yourself (
 | **Planned hours** | 10 |
 | **Level** | Intermediate |
 | **Architecture** | [ARCHITECTURE.md](ARCHITECTURE.md); decisions: [docs/adr](docs/adr) |
+| **Technology notes** | [tech/](tech/README.md): one beginner-level note per technology used here (OAuth 2.0 and OpenID Connect, PKCE, JWT, Keycloak, Python, Flask, Docker and the rest), written through this repository's own files |
 
 ## Prerequisites
 
@@ -159,6 +160,7 @@ tests/
                      the verifier, the provider adapter over a mock transport, the HTTP layer. No provider.
   integration/       token validation, flow protections, session lifecycle, stretch goals, against Keycloak.
   e2e/               a real gunicorn process, a scripted browser and Keycloak.
+tech/                one note per technology, from zero, with an index (tech/README.md).
 docs/adr/            decision records: callback binding, signature allow-list, tokens on the server.
 docker-compose.yml   Keycloak 26.4, and the app under the `app` profile.     Dockerfile  the app as an image.
 pyproject.toml       metadata and every tool's configuration (ruff, mypy, pytest, import-linter).
