@@ -1,0 +1,53 @@
+# Keycloak 26 in development mode as the local OpenID Connect provider, and the app as an image under the `app` profile.
+# The `demo` realm (client notes-app, client notes-spa, one test user) is imported from idp/realm-demo.json; the secrets in
+# it are placeholders that Keycloak fills from the environment below, which compose reads from .env.
+name: security-oauth-login-done-right
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    command: ["start-dev", "--import-realm"]
+    ports:
+      - "127.0.0.1:${KEYCLOAK_PORT:-8180}:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?copy .env.example to .env first}
+      KC_HEALTH_ENABLED: "true"
+      # The issuer and the browser-facing URLs are fixed to what the browser uses; back-channel URLs follow the caller's host,
+      # so the app container (profile `app`) can reach the provider as http://keycloak:8080 and still see the same issuer.
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8180}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      # Placeholders in the realm file.
+      NOTES_APP_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?copy .env.example to .env first}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:?copy .env.example to .env first}
+      APP_BASE_URL: http://localhost:${APP_PORT:-3000}
+    volumes:
+      - ./idp/realm-demo.json:/opt/keycloak/data/import/realm-demo.json:ro
+    healthcheck:
+      # The image has no curl; the management port (9000) answers /health/ready once the realm is imported.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"status\": \"UP\"' <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 120
+      start_period: 20s
+
+  app:
+    profiles: ["app"]
+    build: .
+    image: security-oauth-login-done-right:dev
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      APP_HOST: 0.0.0.0
+      OIDC_DISCOVERY_BASE: http://keycloak:8080/realms/demo
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:${APP_PORT:-3000}"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
