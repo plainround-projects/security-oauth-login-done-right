@@ -46,7 +46,7 @@ idp-check: ## step 1: the discovery document and the signing keys are reachable
    ```bash
    make idp-check
    ```
-   Expect `issuer`, `authorization_endpoint`, `jwks_uri` and `signing keys` followed by a count of at least 1.
+   Expect `issuer`, `authorization_endpoint`, `jwks_uri` and `signing keys` followed by a count (2 in the verified run: Keycloak publishes more than one key).
 2. See the raw reply with headers:
    ```bash
    curl -si http://localhost:8180/realms/demo/.well-known/openid-configuration | head -15

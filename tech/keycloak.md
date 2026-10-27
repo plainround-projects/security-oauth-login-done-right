@@ -118,7 +118,7 @@ One user. The password is a placeholder, filled from `DEMO_USER_PASSWORD` in `.e
    ```bash
    make up
    ```
-   Expect `keycloak` healthy and `idp-check` printing the issuer `http://localhost:8180/realms/demo`, the authorization endpoint, the `jwks_uri` and `signing keys` with a count of at least 1.
+   Expect `keycloak` healthy and `idp-check` printing the issuer `http://localhost:8180/realms/demo`, the authorization endpoint, the `jwks_uri` and `signing keys` with a count (2 in the verified run).
 2. Read the discovery document:
    ```bash
    curl -s http://localhost:8180/realms/demo/.well-known/openid-configuration | python3 -m json.tool | head -30
