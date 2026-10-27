@@ -24,6 +24,11 @@ Signature verification is the one place where "write it yourself" is a mistake. 
 3. `jwt.decode(token, key, algorithms=[...], options={...})` checks the algorithm against your list, verifies the signature, and, depending on `options`, checks the standard claims (`exp`, `nbf`, `iat`, `aud`, `iss`, `sub`). It returns the payload as a dictionary or raises an exception from `jwt.exceptions`.
 4. Exceptions form a family: `InvalidSignatureError` is a kind of `InvalidTokenError`, as are the errors for malformed tokens.
 
+### Ideas you need first
+
+- **A library and an extra.** A library is code others wrote that you install. An **extra** is an optional add-on set a library offers: `PyJWT[crypto]` means "PyJWT plus the packages needed for RSA". Without the extra, RSA signatures cannot be checked.
+- **Compiled code.** Some Python packages include code written in C or Rust for speed. `cryptography` is one: it ships prebuilt binaries for each platform, which is why it is pinned and hash-checked.
+
 ## Walkthrough of this repository's use
 
 ```python

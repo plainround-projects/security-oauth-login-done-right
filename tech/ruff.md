@@ -72,6 +72,28 @@ Rules that matter for this lesson: `S105`/`S106` (hard-coded passwords: the clie
 
 `ruff format` is Black-compatible: double quotes, trailing commas, wrapped calls. `ruff format --check .` in CI means a formatting difference fails the build, so contributors run `make format` first.
 
+### What each selected rule family catches
+
+Examples of the kind of code each family in `select` objects to (so the abbreviations mean something):
+
+| Family | Example it flags |
+| --- | --- |
+| `E` (pycodestyle errors) | A line over 120 characters; a missing blank line between functions. |
+| `F` (pyflakes) | `import os` that is never used; a variable used before it is defined; an f-string with no placeholders. |
+| `I` (isort) | Imports not in the order standard library, third party, first party, each group alphabetical. |
+| `B` (bugbear) | `def f(items=[])` (a mutable default argument shared between calls); `raise Error` inside `except` without `from`. |
+| `UP` (pyupgrade) | `typing.List[int]` where `list[int]` is now right; `"%s" % x` where an f-string is clearer. |
+| `SIM` (simplify) | `if x: return True else: return False` instead of `return x`. |
+| `N` (pep8-naming) | A class called `my_class`; a function called `DoThing`. |
+| `C4` (comprehensions) | `list([x for x in y])` or `dict([(a, b) for ...])` where a plain comprehension is enough. |
+| `RUF` (ruff's own) | A `# noqa` comment that silences nothing (`RUF100`); a mutable class attribute. |
+| `PT` (pytest style) | `@pytest.fixture()` with needless parentheses; a wrong type for `parametrize` names. |
+| `S` (bandit rules) | `assert` used as a check (`S101`); a hard-coded password-looking string (`S105`, `S106`); a SQL string built by joining (`S608`); `subprocess` with a shell (`S602`). |
+| `DTZ` (datetimez) | `datetime.now()` or `datetime.utcnow()` with no time zone. |
+| `D100`, `D101`, `D103`, `D104` | A module, a class, a function or a package with no docstring. |
+
+**The other keys.** `[tool.ruff]` has `line-length = 120`, `target-version = "py312"`, `src = ["src", "tests"]`. `[tool.ruff.lint]` has `select`. `[tool.ruff.lint.per-file-ignores]` has one line: `"tests/**" = ["D", "S101", "S105", "S106", "S603", "S607"]`. `S603` and `S607` are the subprocess rules: running a program from a variable, and running a program by partial path (`"git"`, found through `PATH`) rather than full path; the end-to-end test starts this project's own server as a subprocess. **Commands:** `ruff check .` reports problems and exits 1 if any; `ruff check --fix .` applies the safe automatic fixes; `ruff format .` rewrites the files into the formatter's layout; `ruff format --check .` only reports.
+
 ## Try it yourself
 
 1. Lint everything:

@@ -24,6 +24,14 @@ Terms: a **workflow** is one YAML file (`tech/yaml.md`). It has **jobs**; each j
 4. When all steps succeed the job passes. Any non-zero exit code fails the step and, by default, skips the rest of the job.
 5. The VM is destroyed afterwards, so nothing persists except uploaded **artifacts**.
 
+### Ideas you need first
+
+- **Continuous integration (CI).** Running the project's checks automatically on every change, on a clean machine, so "it works on my laptop" cannot hide a problem.
+- **A virtual machine and a runner.** A simulated computer that exists for the length of one job. `ubuntu-latest` is GitHub's standard Linux one, with Docker and Python available. It is destroyed when the job ends.
+- **A secret and a token.** GitHub can hold secrets for a repository and gives each job a short-lived token (`GITHUB_TOKEN`) whose powers are set by the workflow's `permissions:`.
+- **An artifact.** A file a job uploads so it can be downloaded after the run (here the bill of materials).
+- **A commit SHA.** The 40-character fingerprint of a git commit.
+
 ## Walkthrough of this repository's use
 
 ```yaml

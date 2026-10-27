@@ -66,6 +66,26 @@ Creates two commands. `module:function` is what the launcher calls; the function
 
 The dependencies are installed first from the hashed lock; the project is installed second with `--no-deps`, so pip cannot reach out to resolve anything or pull an unreviewed package.
 
+### Every dependency, and what its version text means
+
+A version rule such as `flask>=3.1,<4` means "any version from 3.1 up to but not including 4": the lower bound is the oldest release known to work, the upper bound avoids a future major release that may break things. `PyJWT[crypto]>=2.9,<3` asks for an **extra**: an optional add-on set the library defines (`crypto`: the packages needed to verify RSA signatures).
+
+| Where | Package | Role in this repository |
+| --- | --- | --- |
+| `dependencies` (shipped) | `flask>=3.1,<4` | The web framework (`tech/flask.md`). |
+| | `gunicorn>=23,<26` | The production web server (`tech/gunicorn.md`). |
+| | `httpx>=0.27,<1` | The HTTP client for the back channel (`tech/httpx.md`). |
+| | `PyJWT[crypto]>=2.9,<3` | Token signature verification, with the `crypto` extra that pulls in `cryptography` (`tech/pyjwt.md`). |
+| `dev` extra | `pytest>=8,<10`, `pytest-cov>=5` | Test runner and coverage (`tech/pytest.md`). |
+| | `ruff>=0.6`, `mypy>=1.11` | Linting and type checking. |
+| | `import-linter>=2.0` | Architecture rules. |
+| | `pip-audit>=2.7` | Vulnerability check on dependencies. |
+| | `cyclonedx-bom>=5,<8` | The bill of materials writer. |
+
+**Every key in `[project]`:** `name` (the name pip shows); `version` (`0.1.0`: major.minor.patch); `description`; `readme` (the file shown as the long description, and the reason the Dockerfile copies `README.md`); `requires-python = ">=3.12"`; `license = { text = "MIT" }`; `authors`; `dependencies`. `[project.optional-dependencies]` defines the `dev` extra: `pip install .[dev]` (or the lock compile with `--extra dev`) adds those packages. `[project.scripts]` creates two commands: `oidc-login-health` and `oidc-login-demo`. `[tool.setuptools.packages.find]` with `where = ["src"]` and `[tool.setuptools.package-data]` are explained above. `[build-system]` names `setuptools>=75` as the builder.
+
+**What "editable install" does.** `pip install -e .` does not copy the code into the environment. It records a link to `src/`, so edits are used immediately. The metadata folder `src/security_oauth_login_done_right.egg-info/` is what pip reads to know the project's name, version and commands; it is regenerated and ignored by git.
+
 ## Try it yourself
 
 1. See the installed commands:

@@ -23,6 +23,12 @@ The design in the lesson is layered: `domain` (pure rules), `application` (use c
 3. For each contract it asks the graph: "is there any path from X to Y?". A path can go through several modules, so an indirect import also counts.
 4. It prints each contract as KEPT or BROKEN, with the import chain that breaks it, and exits 1 if any is broken.
 
+### Ideas you need first
+
+- **An import.** A line such as `from oidc_login.domain.errors import LoginError` makes one module depend on another: the first cannot work without the second.
+- **A dependency graph.** Draw an arrow for every import from the importing module to the imported one. import-linter builds that graph for the whole package and asks questions of it.
+- **An architecture rule.** "Modules in this folder may never import from that folder." Written once in `pyproject.toml`, checked automatically.
+
 ## Walkthrough of this repository's use
 
 ```toml

@@ -6,7 +6,7 @@
 
 ## Why this repository uses it
 
-Cross-site scripting (**XSS**) happens when a page prints text that someone else controls and the browser mistakes it for code. The fix is **output encoding**: before printing, turn `<` into `&lt;` and so on. Jinja2 does this automatically for Flask's `.html` templates. This repository's pages print only a few values that come from the identity provider (the user name, the granted scopes) and from the code itself, but those are exactly the values that must never be trusted: a user name chosen at the provider is still input.
+Cross-site scripting (**XSS**) happens when a page prints text that someone else controls and the browser mistakes it for code. The fix is **output encoding**: before printing, turn `<` into `&lt;`, `>` into `&gt;`, `&` into `&amp;`, `"` into `&#34;` and `'` into `&#39;`, so the browser shows the characters instead of treating them as markup. Jinja2 does this automatically for Flask's `.html` templates. This repository's pages print only a few values that come from the identity provider (the user name, the granted scopes) and from the code itself, but those are exactly the values that must never be trusted: a user name chosen at the provider is still input.
 
 ## Where it appears
 

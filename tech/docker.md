@@ -105,6 +105,20 @@ Files named here are not sent to the build context, so they can never be `COPY`'
 
 `read_only: true` (the container's file system cannot be written, except the `tmpfs` at `/tmp`), `cap_drop: [ALL]` (no Linux capabilities), `security_opt: ["no-new-privileges:true"]` (a process cannot gain privileges), the published port bound to `127.0.0.1` on the host.
 
+### `.dockerignore`, line by line
+
+Docker sends the project folder to the engine (the "build context") before building. `.dockerignore` lists what to leave out, so nothing in the list can be copied into an image by accident and the transfer is small.
+
+| Line | Why it is excluded |
+| --- | --- |
+| `.git` | The history (and anything ever committed). |
+| `.venv` | The local Python environment; the image builds its own. |
+| `.env` and `.env.*` with `!.env.example` | Local secrets. The `!` line puts the example back: it holds no secret. |
+| `__pycache__`, `*.egg-info`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.import_linter_cache`, `.omc` | Generated caches and tool folders. |
+| `tests`, `docs`, `logs`, `.github` | Not needed to run the service. |
+
+The Dockerfile then copies only what it names: the lock file, `pyproject.toml`, `README.md` and `src/`. (`idp/` is not excluded because it is not named by any `COPY`.) Both mechanisms apply together: a file must pass the ignore list *and* be named by a `COPY`.
+
 ## Try it yourself
 
 (Needs Docker running with free disk space.)

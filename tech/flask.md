@@ -30,6 +30,18 @@ In this code Flask is only the **interface layer**: it reads the HTTP request, c
 6. If anything raised, Flask looks for an **error handler** for that exception class.
 7. `g` is a scratchpad that lives for exactly one request; `request` and `g` look global but are bound to the current request.
 
+### Ideas you need first
+
+- **A client and a server.** A client (a browser, or a program like `curl`) asks; a server (this app) answers. They talk over the network. A **port** is a number (3000 here) that picks which program on a machine receives the connection, like an apartment number inside a building address. `127.0.0.1` is the machine's own address ("localhost"): connections to it never leave the machine.
+- **A request.** One message from client to server. It has a **method** (GET reads something, POST sends something new, PATCH changes part of something, DELETE removes it), a **path** (`/callback`), optional **query** text after a `?` (`?scope=reports:read`), **headers** (named pieces of metadata, like `Cookie:` or `Accept:`), and an optional **body** (the data being sent: a form, or JSON).
+- **A response.** The reply: a **status code** (200 means OK, 201 created, 204 no content, 302 or 303 "go to another address", 400 bad request, 401 not signed in, 403 forbidden, 404 not found, 413 body too large, 429 too many requests, 500 server error, 503 unavailable), headers, and a body (an HTML page or JSON).
+- **JSON.** A text format for data. `{"id": 3, "title": "Groceries"}` is an object with two named values: curly braces hold named values, square brackets hold lists, strings are in double quotes, numbers are bare, and `true`, `false` and `null` are the other values. Python reads it into a dictionary.
+- **A form.** An HTML page element that sends the typed values to the server, as a POST with the values URL-encoded in the body (`username=alice&password=...`).
+- **A route.** A rule that says "requests for this method and path go to this function". Flask writes it as a decorator: `@app.get("/notes")`. `<int:note_id>` inside a path captures that part and converts it to a whole number.
+- **A hook.** A function Flask calls automatically at a fixed moment: `before_request` runs before every route, `after_request` after it.
+- **An error handler.** A function Flask calls when an exception of a given class escapes a route. It decides the response.
+- **A template.** An HTML file with holes the server fills in (`tech/jinja2-templates.md`).
+
 ## Walkthrough of this repository's use
 
 ### The factory and its limits
@@ -123,6 +135,32 @@ def _require_csrf(session: UserSession) -> None:
 ### Behind a proxy
 
 `ProxyFix` is added only when `TRUSTED_PROXY_COUNT` is set (`tech/werkzeug.md`).
+
+### Every part of `create_app`
+
+**Setup.** `settings`, `flow` (the `LoginService`), `secure = settings.cookie_secure`; `app = Flask(__name__)`; `MAX_CONTENT_LENGTH = 16 * 1024` (bodies above 16 KiB get 413); `ProxyFix` only if `TRUSTED_PROXY_COUNT` is above 0 (`tech/werkzeug.md`).
+
+**Hook `load_session` (before every request).** Stores the start time (`time.perf_counter()`, a precise stopwatch), a random request id (`uuid.uuid4().hex`) and the session: `None` for the public endpoints (`healthz`, `readyz`, `static`), else `flow.resolve(request.cookies.get("__Host-session"))`.
+
+**Hook `finish` (after every request).** Adds the security headers; writes one JSON log line (request id, method, path, status, duration in ms, the signed-in subject or `None`). It logs `request.path` only, never the query string, because the callback's query holds a one-time code.
+
+**`template_context`.** Gives every template `session` and `csrf_token`.
+
+**The routes**, with the Python behind each:
+- `GET /healthz`: `jsonify(status="ok")`.
+- `GET /readyz`: calls `container.provider.metadata()`; `ProviderUnavailableError` becomes 503 with the reason, else `{"status":"ready"}`.
+- `GET /`: `render_template("home.html", extra_scope="reports:read", reports_allowed=...)`.
+- `GET /login`: `flow.start(request.args.getlist("scope"))` (every `?scope=` value), `redirect(url, code=302)`, and `set_cookie` for `__Host-login` with the attempt id and the pending lifetime.
+- `GET /callback`: if the query has `error`, log it and answer a generic 400 page; else call `flow.complete(attempt_id=<login cookie>, state=<state>, code=<code>)` inside `try`. The except branches: `StateMismatchError` 400; `TokenValidationError` 401; `ProviderError` 400; `ProviderUnavailableError` 502, each logged with its reason and shown as a fixed sentence by `_failed`, which also clears the login cookie. On success: redirect 302 to `/`, set the session cookie, clear the login cookie.
+- `POST /logout`: if there is a session, `_require_csrf` then `flow.sign_out(cookie)` and a log line; always `redirect("/", code=303)` and clear the cookie. (A logout without a session is a harmless redirect.)
+- `GET /me`: `_require_session()`; JSON with subject, username, sorted scopes, `session_expires_at` as ISO text. No tokens.
+- `GET /api/profile`: `flow.access_token(session)` (refreshing if near expiry), `container.provider.userinfo(token)`, JSON with `sub`, `preferred_username`, `email`.
+- `POST /refresh`: session, CSRF, `flow.refresh(session)`, JSON `{refreshed: true, access_token_valid_for_seconds: n}`.
+- `GET /reports`: session, then `scopes.require(session.scopes, "reports:read")`.
+
+**Helpers.** `_session()` reads `g.session`; `_require_session()` raises the private `_UnauthenticatedError` when it is `None`; `_require_csrf(session)` takes the token from the `X-CSRF-Token` header or the `csrf_token` form field and raises `_CsrfRejectedError` unless it matches (`hmac.compare_digest`); `_failed(status, message, secure)` renders `error.html` and clears the login cookie.
+
+**Error handlers** (`_register_errors`). `_UnauthenticatedError` 401; `_CsrfRejectedError` 403; `InsufficientScopeError` 403 (and logs `authz.refused`); `SessionNotFoundError` 401; any other `LoginError` 401 `sign_in_required` (a `ProviderUnavailableError` becomes 502); `HTTPException` keeps its own code with the standard name; the catch-all `Exception` logs the traceback with the request id and answers a generic 500.
 
 ## Try it yourself
 

@@ -24,7 +24,7 @@ Both Docker Compose and GitHub Actions require YAML for their configuration file
 - `#` starts a comment.
 - A program (`docker compose`, GitHub) parses the text into dictionaries and lists in memory, then reads keys from them.
 
-The classic trap: YAML guesses types. `NO`, `off`, `1.10`, `0123` and similar can become booleans or numbers. So ports and versions are quoted when it matters: `python-version: "3.12"` (unquoted, `3.10` would become `3.1`).
+The classic trap: YAML guesses types. `NO`, `off` and `on` can become booleans, `1.10` becomes the number 1.1, and `0123` becomes the octal number 83. So ports and versions are quoted when it matters: `python-version: "3.12"` (unquoted, `3.10` would become `3.1`).
 
 ## Walkthrough of this repository's use
 

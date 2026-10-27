@@ -29,6 +29,12 @@ PKCE is the cure for authorization-code interception, and current OAuth security
 
 A hash is one-way, so seeing the challenge does not reveal the verifier. The older method `plain` sends the verifier itself and gives no protection against anyone who sees the request; this repository uses only `S256`.
 
+### Ideas you need first
+
+- **A hash.** A one-way fingerprint function. SHA-256 turns any text into 32 bytes; the same text always gives the same 32 bytes; nobody can work backwards from the 32 bytes to the text.
+- **Bytes and base64.** Computers store text as numbers (bytes). Base64 is a way to write bytes using 64 safe letters; "URL-safe" base64 uses `-` and `_` so the result can sit inside an address. Base64 text often ends with `=` padding; PKCE drops it.
+- **A random value of a given strength.** `secrets.token_urlsafe(64)` takes 64 random bytes (512 bits, far more than anyone can guess) and writes them as an 86-character text.
+
 ## Walkthrough of this repository's use
 
 ```python

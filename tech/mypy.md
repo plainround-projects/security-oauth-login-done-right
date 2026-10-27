@@ -25,6 +25,13 @@ Many security bugs are "I assumed this was there": a missing `id_token` in a tok
 4. It caches results in a `.mypy_cache` folder so later runs are fast.
 5. It prints `file:line: error: message [code]` for each problem and exits 1 if there are any.
 
+### Ideas you need first
+
+- **A type.** The kind of a value: whole number (`int`), text (`str`), true/false (`bool`), a list of numbers (`list[int]`), "a `User` or nothing" (`User | None`). Knowing the type tells you what you may do with the value: you can call `.upper()` on text but not on a number.
+- **A type hint.** A label you write in the code (`def find(user_id: int) -> User | None:`) saying what goes in and what comes out. Python runs the program the same with or without them.
+- **A static check.** Looking for mistakes by reading the code without running it. mypy reads the hints and the code and reports places where they disagree, such as passing text where a number is expected, or using a value that might be `None`.
+- **`Any`.** The type that means "anything goes". Where mypy meets `Any` it stops checking. Strict mode is mostly about not letting `Any` creep in.
+
 ## Walkthrough of this repository's use
 
 ```toml
@@ -56,6 +63,32 @@ Test functions are allowed to be unannotated (pytest passes fixtures by name). E
 ### Why `--strict` and not just default
 
 Without strict mode, an unannotated function is treated as "anything goes" and mypy checks nothing inside it. The layered design (ports with precise signatures) only pays off when every adapter is checked against them.
+
+### What `strict = true` switches on
+
+`strict = true` in `[tool.mypy]` turns on this list of checks (the list is printed by `mypy --help` for the pinned version 2.4.0):
+
+| Check | What it refuses |
+| --- | --- |
+| `disallow_any_generics` | A bare `list` or `dict` with no contents type; you must write `list[int]`, `dict[str, str]`. |
+| `disallow_subclassing_any` | A class that inherits from something whose type is `Any`. |
+| `disallow_untyped_calls` | Calling a function that has no type hints from code that has them. |
+| `disallow_untyped_defs` | A function without hints for every parameter and its return value. |
+| `disallow_incomplete_defs` | A function with hints on some parameters and not others. |
+| `check_untyped_defs` | (Positive) Also check the inside of functions that lack hints. |
+| `disallow_untyped_decorators` | A decorator with no hints, which would hide the type of what it wraps. |
+| `warn_redundant_casts` | A `cast(...)` that changes nothing. |
+| `warn_unused_ignores` | A `# type: ignore` comment that no longer silences anything. |
+| `warn_return_any` | Returning an `Any` value from a function declared to return something specific. |
+| `no_implicit_reexport` | Importing a name from a module that merely imported it itself. |
+| `strict_equality` | Comparing values of types that can never be equal. |
+| `extra_checks` | A few additional correctness checks. |
+
+The other keys in the repository's `[tool.mypy]` table: `python_version = "3.12"` (check as if running on that version); `files = ["src", "tests"]` (what plain `mypy` with no arguments checks). `[[tool.mypy.overrides]]` with `module = ["tests.*"]` relaxes three flags for the tests only: `disallow_untyped_defs`, `disallow_incomplete_defs` and `disallow_untyped_calls` are set to false, because pytest hands fixtures to test functions by name and annotating them adds nothing.
+
+**`# type: ignore[code]`.** Tells mypy to skip one error on one line. The bracket names the error (`method-assign`, `arg-type`); a bare `# type: ignore` would hide any error on the line, so the repository never writes one. Two exist: the `ProxyFix` wrapping in `app.py`, and a stand-in container in `tests/unit/test_http_app.py`.
+
+**How to read mypy's output.** `path:line: error: message [code]`, for example `src/oidc_login/interfaces/composition.py:38: error: Argument "provider" to "LoginService" has incompatible type "OidcProvider"; expected "IdentityProvider"  [arg-type]`, then notes saying which protocol member is missing. It exits 1 when there is any error, so `make lint` fails.
 
 ## Try it yourself
 

@@ -23,6 +23,12 @@ A secure application on top of a vulnerable library is not secure. The lesson as
 3. It prints a table of any vulnerable package, its version, the advisory ID and the version that fixes it, and exits 1. With none, it prints `No known vulnerabilities found` and exits 0.
 4. Without `--no-deps` it would ask `pip` to resolve dependencies first, which creates a temporary environment. With a fully pinned, hash-checked file that step is unnecessary.
 
+### Ideas you need first
+
+- **A dependency.** A library your program uses that someone else wrote. This project uses about eighty, counting the ones its libraries use in turn.
+- **A version and a pin.** A version is a number such as `3.1.3`. To **pin** is to name one exact version (`flask==3.1.3`) instead of a range (`flask>=3.1`).
+- **A vulnerability and an advisory.** A vulnerability is a flaw an attacker can use. An advisory is a published notice of one: an id (`PYSEC-2021-142`, `GHSA-...`, `CVE-...`), which package and versions are affected, and which version fixes it.
+
 ## Walkthrough of this repository's use
 
 ```make

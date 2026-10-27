@@ -26,6 +26,14 @@ OpenID Connect has a **back channel**: calls from the app's server straight to t
 4. Errors form a family: `httpx.HTTPError` is the base; `httpx.TransportError` covers network and timeout failures (`ConnectError`, `ReadTimeout`); `httpx.HTTPStatusError` is raised only if you call `response.raise_for_status()` and the status is 4xx/5xx.
 5. A **transport** is the layer that actually moves bytes. Replace it with `httpx.MockTransport(handler)` and the client calls your Python function instead of the network.
 
+### Ideas you need first
+
+- **An HTTP client.** A program (or library) that sends requests to a server and reads the reply: the same role a browser plays, without the page.
+- **A connection and a timeout.** To talk to a server, the client opens a connection over the network. A timeout is a limit on how long to wait for each step; without one a stuck server would freeze the caller forever.
+- **A redirect.** A reply that says "go to this other address". A client may follow it automatically; here it is turned off.
+- **Idempotent.** A request that is safe to send twice because it only reads (GET). Safe-to-repeat requests may be retried after a failure; a request that consumes something (an authorization code) may not.
+- **A mock.** A fake server inside the test that answers from a script, so tests need no network.
+
 ## Walkthrough of this repository's use
 
 ```python

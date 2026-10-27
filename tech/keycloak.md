@@ -28,6 +28,13 @@ The lesson needs a real provider so the protections are shown against real behav
 4. A browser login: the client redirects to `/realms/demo/protocol/openid-connect/auth`; Keycloak shows the login form; after authentication it redirects back with a code. The client trades the code at `/realms/demo/protocol/openid-connect/token`.
 5. Management is on a separate **management port** (9000), which also serves `/health/ready` when `KC_HEALTH_ENABLED=true`.
 
+### Ideas you need first
+
+- **An identity provider.** A service whose job is to know who people are and vouch for them to other applications, so each application does not keep its own passwords. Large companies run one; this repository runs Keycloak locally.
+- **A realm, a client, a user.** In Keycloak a realm is one self-contained world; a client is an application registered in it; a user is a person with a password.
+- **A container.** A running, isolated copy of a program packaged with everything it needs (`tech/docker.md`).
+- **A placeholder.** `${NAME}` inside the realm file is replaced by the value of the environment variable `NAME` when Keycloak imports the file, so secrets stay out of the file.
+
 ## Walkthrough of this repository's use
 
 The realm, key by key (all in `idp/realm-demo.json`):

@@ -27,6 +27,16 @@ The lesson asks for a service that starts, answers, and **shuts down gracefully*
 5. A **signal** from the operating system controls the master. `SIGTERM` (the polite stop, sent by `kill` and by `docker stop`) means graceful shutdown: stop accepting, let workers finish, then exit. `SIGINT` (Ctrl-C) does the same.
 6. When a worker exits, gunicorn calls the `worker_exit(server, worker)` hook inside it. This repository uses the hook to close the HTTP client that talks to the identity provider.
 
+### Ideas you need first
+
+- **A server and a port.** A server is a program that waits for other programs (clients) to connect and ask for something. It listens on a **port**, a number between 1 and 65535 that identifies one waiting program on a machine; a client connects to an address plus a port, such as `127.0.0.1:3000`. A **socket** is the operating system's handle for one such network connection (or the listening end of one).
+- **The address `127.0.0.1` and `0.0.0.0`.** `127.0.0.1` is the machine's own loopback address: only programs on the same machine can reach it. `0.0.0.0` means "listen on every network address of this machine".
+- **A process, a fork and a worker.** A process is one running copy of a program. To **fork** is to make a copy of the running process. gunicorn's first process (the **master**) opens the port once and forks **workers**, which do the actual request handling. A worker that crashes or hangs is replaced.
+- **A thread.** Inside one process, several threads can work at the same moment and share memory. With `gthread` workers every worker has a small pool of threads, each handling one request at a time.
+- **A signal.** A short message from the operating system to a process. `SIGTERM` is the polite request to stop (sent by `kill` and by `docker stop`); `SIGINT` is what Ctrl-C sends; `SIGKILL` cannot be caught and ends the process at once. **Graceful shutdown** means catching `SIGTERM`, finishing the requests already being served, closing resources, then exiting.
+- **A timeout.** A limit on how long something may take before it is treated as failed.
+- **A hook.** A function you hand to a framework to be called at a fixed moment. gunicorn calls `worker_exit` as each worker exits.
+
 ## Walkthrough of this repository's use
 
 ```python

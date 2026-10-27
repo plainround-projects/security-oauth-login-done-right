@@ -50,6 +50,16 @@ The lesson is "OAuth login done right". Most breaches of OAuth logins come from 
 
 **Why a code and not a token in the redirect?** The browser URL is visible to history, logs and extensions. A code is useless without the client's credentials and the PKCE verifier, so exposing it is not enough to do harm.
 
+### Ideas you need first
+
+- **Authentication and authorization.** Authentication answers "who are you?". Authorization answers "what may you do?". OpenID Connect handles the first; OAuth scopes handle the second.
+- **A redirect.** A response (status 302 or 303) with a `Location:` header that tells the browser to go to another address. The whole sign-in is a chain of redirects: app, then provider, then back to the app.
+- **A query string.** The part of an address after `?`: `callback?code=abc&state=xyz` carries two named values, `code` and `state`.
+- **The front channel and the back channel.** The front channel is anything that passes through the user's browser (redirects, addresses): visible to the user, to browser extensions and to logs. The back channel is a direct connection between two servers: the user's browser never sees it. Secrets must travel only on the back channel.
+- **A one-time value.** A random value that is valid once. The authorization code, `state` and `nonce` are all one-time values.
+- **Random and unguessable.** The values are made from the operating system's secure random source (`secrets.token_urlsafe`), so an attacker cannot predict them.
+- **Hashing and signing.** A hash is a fingerprint. A signature proves who made something and that it was not changed (`tech/jwt-and-jwks.md`).
+
 ## Walkthrough of this repository's use
 
 ### Starting a login

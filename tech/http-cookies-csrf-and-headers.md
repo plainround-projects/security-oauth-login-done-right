@@ -44,6 +44,15 @@ Neither cookie holds a token, a name, or any readable data. They are opaque rand
 
 **SameSite=Lax is a decision, not a default.** `SameSite=Strict` would not send the cookie on the provider's redirect back to the app (a cross-site navigation), so the login cookie would never arrive. `Lax` sends cookies on top-level GET navigations from other sites (exactly the redirect) but not on cross-site POSTs or background requests. That is why the login cookie works, and also why the state-changing routes still need a CSRF token.
 
+### Ideas you need first
+
+- **HTTP and a header.** HTTP is the text protocol of the web. A message is a first line, then header lines (`Name: value`), a blank line, and an optional body. Headers carry metadata: which cookie, what content type, what the browser should and should not do.
+- **A cookie.** A small value the server asks the browser to store (header `Set-Cookie: name=value; attributes`) and the browser sends back automatically with every later request to that site (header `Cookie: name=value`). Without cookies the server cannot tell that two requests come from the same person.
+- **A cookie attribute.** A setting stored with the cookie: `HttpOnly` (page scripts cannot read it), `Secure` (only sent over HTTPS), `SameSite=Lax` (not sent on cross-site POSTs), `Path=/` (sent for every path), `Max-Age` (seconds to keep it).
+- **An origin.** Scheme, host and port together (`https://example.com:443`). Browsers keep pages from different origins apart: a page from another site can make your browser *send* a request to this site but cannot *read* the answer. That asymmetry is why a secret token in a page defeats CSRF.
+- **A token.** A random value used as a password-like proof: here a session id and a CSRF token, both 256 bits from the operating system's secure random source.
+- **HTTPS.** HTTP wrapped in TLS encryption. This app expects HTTPS to be ended by a proxy in front of it (`TRUSTED_PROXY_COUNT`).
+
 ## Walkthrough of this repository's use
 
 ### The cookies

@@ -29,6 +29,21 @@ Small glue jobs: create `.env` once, check that the identity provider answers, d
 5. `exec 3<>/dev/tcp/HOST/PORT` is special to Bash: it opens a TCP connection and makes it descriptor 3, open for reading and writing (`<>`). `/dev/tcp/...` does not exist as a file; Bash itself intercepts the name. It is a Bash feature, not part of every shell.
 6. `$( ... )` runs a command and substitutes its output.
 
+### Ideas you need first
+
+- **A terminal and a shell.** A terminal is a window where you type text commands instead of clicking. The program that reads what you type is the shell; Bash is one shell. You type a line, press Enter, and the shell runs it.
+- **A command, its arguments and its flags.** A command is the name of a program (`ls`, `make`, `docker`). What follows are **arguments**: extra words that tell it what to work on. A **flag** (or option) is an argument that starts with `-` or `--` and changes how the command behaves, such as `-l` or `--help`.
+- **A directory, a path and the working directory.** A directory is a folder. A path names a file by listing the folders to open: `scripts/demo.sh` means "the file `demo.sh` inside the folder `scripts`". The **working directory** is the folder you are "in"; relative paths are read from there. `.` means "this folder", `..` means "the folder above".
+- **`PATH`.** An environment variable holding a list of folders. When you type `gunicorn`, the shell looks through those folders, in order, for a program with that name. A path with a slash (`.venv/bin/gunicorn`) names the program directly and skips the search.
+- **An environment variable.** A named piece of text given to a process when it starts. `NAME=value command` sets one for a single command; `export NAME=value` sets it for the shell and every program it starts afterwards.
+- **A process and its exit code.** Running a command starts a process. When it ends it returns a number: 0 means success, anything else means failure. The shell stores the last one in `$?`.
+- **Standard input, output and error.** Every process has three text streams: input it reads (stdin, 0), normal output (stdout, 1) and error output (stderr, 2). A **redirect** sends one somewhere else: `> file` writes stdout to a file, `2> file` writes stderr, `2>&1` sends stderr to wherever stdout goes, `< file` reads stdin from a file. `/dev/null` is a special file that throws away whatever is written to it.
+- **A pipe.** `a | b` connects a's stdout to b's stdin, so b reads what a prints. Both run at the same time.
+- **A file descriptor.** The number the operating system gives to an open stream. 0, 1 and 2 are the three standard ones; you can open more (`exec 3<>...` below).
+- **A background process and a signal.** A trailing `&` starts a command without waiting for it. A **signal** is a message the operating system sends to a process; `SIGTERM` means "please stop", and a well-written program cleans up and exits when it gets one.
+- **A variable and quoting.** `NAME=value` sets a shell variable; `$NAME` reads it. Double quotes (`"$NAME"`) keep a value with spaces as one word. Single quotes (`'...'`) pass the text exactly as written. `$(command)` runs a command and substitutes its output.
+- **A script and the shebang.** A script is a text file of commands. Its first line, `#!/usr/bin/env bash`, tells the operating system which program should run the file. The file must be marked executable (`chmod +x`).
+
 ## Walkthrough of this repository's use
 
 ### Create `.env` once

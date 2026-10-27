@@ -32,6 +32,14 @@ A normal `pip install flask` fetches whatever is newest today, and trusts whatev
 4. **`--no-deps`**: do not resolve dependencies again; trust the file.
 5. **Editable install** (`-e .`): installs this project as a link to `src/`, so edits take effect without reinstalling.
 
+### Ideas you need first
+
+- **A package and an index.** A package is a library packaged for installation. PyPI (the Python Package Index) is the public server that stores them. `pip install flask` downloads a package from it.
+- **A virtual environment.** A folder (`.venv/`) containing its own copy of Python and its own installed packages, so one project's libraries never clash with another's. You do not activate it in this repository; the Makefile calls its programs by path (`.venv/bin/pytest`).
+- **Dependency resolution.** Choosing one version of every package so that all the requirements agree. Flask needs Werkzeug at some version; Werkzeug needs something else; a resolver finds a consistent set.
+- **A hash.** A fingerprint of a file. A lock file that lists the expected hash of every package file lets the installer prove it got exactly the file the maintainer reviewed. `--require-hashes` makes pip refuse anything else.
+- **A lock file.** A text file with the full resolved list: every package, its exact version, its hashes.
+
 ## Walkthrough of this repository's use
 
 The first lines of `requirements.lock`:

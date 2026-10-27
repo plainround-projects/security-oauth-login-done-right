@@ -33,6 +33,15 @@ Signing is **not** encryption: anyone can read the payload (just decode it). The
 
 **Why the algorithm list matters.** The header is chosen by whoever made the token, which may be an attacker. If a verifier believed `alg`: with `none` there is no signature; with `HS256` (HMAC, a shared-secret scheme) a library that is careless might use the provider's *public* key, which everyone knows, as the shared secret, and the attacker can compute a valid HMAC. The defense is to decide the allowed algorithms in your own code, not from the token.
 
+### Ideas you need first
+
+- **Base64url.** A way to write any bytes using only letters, digits, `-` and `_`, so the result is safe in an address or a header. Not encryption: anyone can decode it.
+- **JSON.** A text format for data: objects `{"key": value}`, lists `[1, 2]`, strings in double quotes, numbers, `true`, `false`, `null`.
+- **A key pair.** Two linked numbers: a private key that only the owner knows and a public key anyone may have. Something signed with the private key can be checked with the public key, and only the private key could have made it.
+- **A digital signature.** A value computed from a message and a private key. Changing even one character of the message makes the signature fail to verify. RSA is one signature system; RS256 means "RSA with SHA-256".
+- **An algorithm and a key id.** The header says which algorithm made the signature (`alg`) and which of the issuer's keys (`kid`).
+- **Symmetric versus asymmetric.** HMAC (HS256) uses one shared secret for both signing and checking; RSA (RS256) uses a key pair. An attacker who can trick a verifier into treating the public key as an HMAC secret can forge tokens: the "algorithm confusion" attack.
+
 ## Walkthrough of this repository's use
 
 ```python

@@ -25,6 +25,14 @@ The macOS version on this machine is GNU Make 3.81. The Makefile uses only featu
 4. Each recipe line starts with a **tab** (not spaces) and runs in its own `/bin/sh`. A line that fails stops `make`, unless the line starts with `-`.
 5. `@` before a line hides the command echo. `$(NAME)` expands a Make variable; `$$` writes a literal `$` for the shell.
 
+### Ideas you need first
+
+- **A build tool.** A program that runs a list of steps in the right order, and skips steps whose results are already up to date. Programmers use it so that one short command (`make test`) replaces a long sequence they would otherwise have to remember.
+- **A target, a prerequisite and a recipe.** In a `Makefile`, `name: other1 other2` followed by indented lines defines a **target** called `name`. `other1` and `other2` are its **prerequisites**: things that must be done first. The indented lines are the **recipe**: shell commands that make runs, one by one, each in its own shell.
+- **A file target and a phony target.** If the target name is a real file (like `.venv/.installed`), make runs the recipe only when the file is missing or older than a prerequisite. A **phony** target (listed after `.PHONY:`) is just a name for a job and always runs.
+- **A variable.** `NAME := value` stores text; `$(NAME)` uses it. `$@` means "this target's name". A doubled dollar, `$$`, passes a single `$` through to the shell.
+- **Tabs.** Recipe lines must start with a Tab character, not spaces.
+
 ## Walkthrough of this repository's use
 
 ### Variables
@@ -105,6 +113,39 @@ test-integration: $(STAMP) ## the provider adapter, token validation and the flo
 ### Containers and cleanup
 
 `docker-build`, `docker-run` (`docker compose --profile app up -d --wait --build app`: starts Keycloak first, then the app) and `down` (`docker compose --profile app down -v`; `-v` also deletes the containers' volumes). `clean: down` depends on `down`, then removes the virtual environment and all tool caches with `rm -rf`.
+
+### Every target
+
+`$(VENV)` is `.venv`, `$(PY)` is `.venv/bin/python`, `$(STAMP)` is `.venv/.installed`; a leading `@` hides the command from make's own echo.
+
+| Target | Prerequisites | What the recipe does |
+| --- | --- | --- |
+| `help` | none | Prints every `target: ... ## text` line as `target<TAB>text`, sorted. |
+| `$(STAMP)` | `requirements-dev.lock`, `pyproject.toml` | Creates the virtual environment, installs the locked dev packages with hashes checked, installs the project in editable mode, then `touch`es the stamp. |
+| `install` | `$(STAMP)` | Forces the stamp rule. |
+| `env` | none | Copies `.env.example` to `.env` if `.env` does not exist. |
+| `up` | `env`, `$(STAMP)` | `docker compose up -d --wait keycloak` (start only Keycloak, wait until healthy), then `make idp-check`. |
+| `idp-check` | none | Two `curl ... \| python -c` pipelines that fetch the discovery document and the key set and print the issuer, endpoints and the number of signing keys (`tech/curl.md`). |
+| `run` | `env`, `$(STAMP)` | Starts gunicorn in the foreground on port 3000 (Ctrl-C stops it gracefully). |
+| `demo` | `env`, `$(STAMP)` | `python -m oidc_login.interfaces.demo_cli`: the 16-step scenario. |
+| `health` | `$(STAMP)` | The `oidc-login-health` command: exit 0 when `/healthz` answers 200. |
+| `lint` | `$(STAMP)` | `ruff check .`, `ruff format --check .`, `mypy`, `lint-imports`, in order. |
+| `format` | `$(STAMP)` | `ruff check --fix .` then `ruff format .`. |
+| `test` | `$(STAMP)` | Unit tests with coverage, then the 95% gate on domain and application. |
+| `test-integration` | `$(STAMP)` | `pytest tests/integration -m integration -v` (needs Keycloak). |
+| `test-e2e` | `$(STAMP)` | `pytest tests/e2e -m e2e -v` (needs Keycloak). |
+| `test-all` | `test test-integration test-e2e` | The three levels in order. |
+| `audit` | `$(STAMP)` | `pip-audit --no-deps --disable-pip -r requirements-dev.lock`. |
+| `sbom` | `$(STAMP)` | Writes `sbom.cdx.json` with `cyclonedx-py`. |
+| `check` | `lint test` | Everything that needs no provider. |
+| `docker-build` | none | `docker build -t security-oauth-login-done-right:dev .` |
+| `docker-run` | `env` | `docker compose --profile app up -d --wait --build app`. |
+| `down` | none | `docker compose --profile app down -v`. |
+| `clean` | `down` | Removes the virtual environment, logs, caches and the SBOM. |
+
+The stamp file works as follows. `make test` needs `.venv/.installed`. If that file is missing, or `requirements-dev.lock` or `pyproject.toml` is newer, make runs: `$(PYTHON) -m venv $(VENV)` (create a **virtual environment**: a private folder with its own Python and its own installed packages, so this project's libraries never clash with another's), `pip install -q --require-hashes -r requirements-dev.lock` (install every locked package, refusing any file whose fingerprint is not in the lock), `pip install -q --no-deps -e .` (install this project itself as a link to `src/`), `touch $@` (update the stamp). If the stamp is newer than both, nothing is reinstalled.
+
+`.PHONY:` lists the names that are jobs and not files. `-include .env` reads `.env` if it exists; the bare `export` passes every variable to every recipe, which is how `OIDC_ISSUER` reaches `idp-check`.
 
 ## Try it yourself
 

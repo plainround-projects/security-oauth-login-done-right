@@ -26,6 +26,16 @@ The lesson signs in against a real OpenID Connect provider. Compose starts Keycl
 4. `--wait` blocks until services with a health check report healthy.
 5. `down` stops and removes the containers and the network; `-v` also deletes their volumes.
 
+### Ideas you need first
+
+- **An image and a container.** An image is a frozen, read-only package of a program and everything it needs. A container is a running copy of an image, isolated from the rest of the machine: its own files, its own processes, its own network address.
+- **A service.** In Compose, one named container to run (`keycloak`, `app`).
+- **A port mapping.** `"127.0.0.1:8180:8080"` means "connections to port 8180 on this machine's loopback address are forwarded to port 8080 inside the container". Putting `127.0.0.1` in front keeps the port closed to other computers.
+- **A volume.** Storage that outlives a container. The containers' volumes disappear with `docker compose down -v`.
+- **A network.** Compose creates a private one for the project. Containers reach each other by service name: the app container reaches the provider as the host `keycloak`.
+- **An environment variable.** A named text value passed into the container; `${NAME:-default}` in the YAML means "the variable `NAME`, or `default` if it is not set".
+- **A health check.** A command Docker runs repeatedly inside the container; exit code 0 means healthy. `--wait` makes Compose block until healthy.
+
 ## Walkthrough of this repository's use
 
 ```yaml

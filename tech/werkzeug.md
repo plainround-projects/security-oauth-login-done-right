@@ -23,6 +23,13 @@ Four small, visible uses: the `HTTPException` base class (so one error handler c
 3. Anyone can also *send* an `X-Forwarded-For` header themselves. So an app must only believe the entries added by proxies it trusts.
 4. `ProxyFix(app, x_for=N)` says "trust exactly N proxies" and rewrites `request.remote_addr` from the Nth entry from the right.
 
+### Ideas you need first
+
+- **A reverse proxy.** A server that sits in front of your app: browsers talk to it, and it forwards each request to your app and relays the answer. It often handles HTTPS (so the app itself sees plain HTTP), spreads load over several copies of the app, or adds protections. From the app's point of view every request now appears to come from the proxy's address.
+- **A request header.** A named piece of metadata in a request. A proxy adds `X-Forwarded-For` (the client's real address) and `X-Forwarded-Proto` (`https` or `http`, the scheme the client used). Anyone can also send these headers by hand, so an app should only believe them when it knows a trusted proxy sets them.
+- **Middleware.** A wrapper around an application that can inspect and change each request on the way in and each response on the way out.
+- **A test client.** A fake browser that calls the application directly, without a network, and returns the response. It also keeps cookies between requests.
+
 ## Walkthrough of this repository's use
 
 ### `ProxyFix`

@@ -22,6 +22,7 @@ Notes describe the code as committed. Commands that need the identity provider s
 | [curl.md](curl.md) | The check that the provider is up and publishes its keys. |
 | [git.md](git.md) | History, and `.gitignore` for files that must never be committed. |
 | [editorconfig.md](editorconfig.md) | Editor settings shared by everyone. |
+| [markdown-and-mermaid.md](markdown-and-mermaid.md) | The documents: README, architecture with its sign-in diagram, decisions. |
 
 **2. Files and formats**
 
@@ -52,6 +53,7 @@ Notes describe the code as committed. Commands that need the identity provider s
 | [flask.md](flask.md) | The web framework: routes, hooks, error handlers. |
 | [werkzeug.md](werkzeug.md) | The library under Flask: proxy handling, errors, cookies, the test client. |
 | [jinja2-templates.md](jinja2-templates.md) | HTML templates and output encoding. |
+| [css.md](css.md) | The one stylesheet the pages load. |
 | [gunicorn.md](gunicorn.md) | The production server, one worker, graceful shutdown. |
 | [http-cookies-csrf-and-headers.md](http-cookies-csrf-and-headers.md) | Cookies, CSRF tokens, security headers. |
 

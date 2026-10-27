@@ -91,6 +91,17 @@ An array of strings, one per line, with a trailing comma allowed.
 
 Each tool owns its own `[tool.<name>]` table: `ruff` (`tech/ruff.md`), `mypy` (`tech/mypy.md`), `pytest` and `coverage` (`tech/pytest.md`), `importlinter` (`tech/import-linter.md`), `setuptools` (`tech/pyproject-and-setuptools.md`).
 
+### Every tool table in `pyproject.toml`
+
+- `[tool.ruff]`: `line-length` (longest allowed line), `target-version` (the Python version to assume), `src` (folders holding the project's own packages). `[tool.ruff.lint]`: `select` (the rules to run). `[tool.ruff.lint.per-file-ignores]`: a table from a file pattern to the rules waived there.
+- `[tool.mypy]`: `python_version`, `strict`, `files`. `[[tool.mypy.overrides]]`: a list of exceptions, each with `module` (patterns) and the flags to relax.
+- `[tool.pytest.ini_options]`: `testpaths` (where to look), `addopts` (flags always added: `-ra` prints a summary of every non-passing test, `--strict-markers` makes an unregistered marker an error), `markers` (a list of `name: description` strings for the two labels `integration` and `e2e`).
+- `[tool.coverage.run]`: `source = ["oidc_login"]` (measure this package) and `branch = true` (also count each side of every `if`). `[tool.coverage.report]`: `show_missing = true` (print the line numbers not run) and `skip_covered = false` (still list fully covered files).
+- `[tool.importlinter]`: `root_package` (the package to analyze) and `include_external_packages = true` (also track third-party imports). `[[tool.importlinter.contracts]]` appears twice: a `layers` contract with `layers = [...]` from highest to lowest, and a `forbidden` contract with `source_modules` and `forbidden_modules`.
+- `[tool.setuptools.packages.find]` and `[tool.setuptools.package-data]`, as in `tech/pyproject-and-setuptools.md`.
+
+The whole file in one sentence per top-level table: `[build-system]` how to build, `[project]` what this is, `[project.optional-dependencies]` the dev tools, `[project.scripts]` the two commands, then one `[tool.*]` table per tool that reads it.
+
 ## Try it yourself
 
 1. Parse the file with the standard library:
