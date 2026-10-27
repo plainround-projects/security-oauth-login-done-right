@@ -12,7 +12,7 @@ The lesson's controls are only trustworthy if their history is reviewable: each 
 
 | Path | What it does |
 | --- | --- |
-| `.git/` | The history (eight commits, one per step: skeleton, provider and keys, the flow, token checks, sessions and refresh, protections, CI, fixes). |
+| `.git/` | The history (about ten commits, one per step: skeleton, provider and keys, the flow, token checks, sessions and refresh, protections, CI, fixes, these notes). |
 | `.gitignore` | 17 patterns of files never committed. |
 | `.dockerignore` | The same idea for the Docker build context (`tech/docker.md`). |
 | `.github/workflows/ci.yml` | Runs on git pushes (`tech/github-actions.md`). |
@@ -61,7 +61,7 @@ Commits are one logical step each, with a message that says what and why. No cre
    ```bash
    git log --oneline
    ```
-   Expect eight lines, newest first.
+   Expect about ten lines, newest first.
 2. Check why a file is ignored:
    ```bash
    git check-ignore -v .env sbom.cdx.json .venv
