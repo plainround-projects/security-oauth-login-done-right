@@ -34,7 +34,7 @@ The lesson is about doing OAuth login correctly. The interesting part is the *ru
 If you have never programmed, read this list once. Each idea is used in the walkthrough below.
 
 - **A program and a file.** A program is a list of instructions. Python programs live in plain text files whose names end in `.py`. You can open them in any text editor.
-- **A directory (folder) and a path.** A directory holds files and other directories. A **path** is the address of a file, such as `src/oidc_login/domain/pkce.py`: start in `src`, go into `notes_app`, then `domain`, then the file `access.py`.
+- **A directory (folder) and a path.** A directory holds files and other directories. A **path** is the address of a file, such as `src/oidc_login/domain/pkce.py`: start in `src`, go into `oidc_login`, then `domain`, then the file `pkce.py`.
 - **A variable.** A name that points at a value: `limit = 5` makes the name `limit` point at the number 5. Later code can say `limit` and get 5.
 - **A value and its type.** Every value has a kind: whole numbers (`int`), text (`str`), true or false (`bool`), "nothing" (`None`), and containers. A **list** is an ordered row of values (`[1, 2, 3]`). A **tuple** is a list that cannot be changed (`(1, 2)`). A **set** is a bag of distinct values with no order (`{1, 2}`); a **frozenset** is a set that cannot be changed. A **dict** (dictionary) maps keys to values (`{"name": "alice"}`).
 - **A function.** A named, reusable piece of code: `def add(a, b): return a + b`. You **call** it with `add(1, 2)`. The values you pass are **arguments**; the names inside the function are **parameters**. `return` hands a result back.
