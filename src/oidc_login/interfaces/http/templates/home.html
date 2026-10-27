@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+{% if session %}
+<h1>Signed in</h1>
+<p>You are signed in as <strong>{{ session.identity.username }}</strong>.</p>
+<p>Granted scopes: <code>{{ session.scopes | sort | join(" ") }}</code></p>
+<p>The browser holds one opaque cookie. The tokens stay on the server.</p>
+<form method="post" action="/logout">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <button type="submit">Sign out</button>
+</form>
+{% else %}
+<h1>Sign in</h1>
+<p>Sign-in is handled by the identity provider; this app never sees your password.</p>
+<p><a class="button" href="/login">Sign in</a></p>
+{% if reports_allowed %}
+<p><a href="/login?scope={{ extra_scope | urlencode }}">Sign in and ask for reports access</a></p>
+{% endif %}
+{% endif %}
+{% endblock %}
