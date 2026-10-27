@@ -24,6 +24,13 @@ The code lives under `src/oidc_login/` (the "src layout"). Installing the projec
 3. pip unpacks the wheel into the environment's `site-packages` and writes small launcher programs for `[project.scripts]` into `.venv/bin/`.
 4. An **editable** install (`-e`) instead drops a link, so Python imports straight from `src/`; edits apply at once.
 
+### Ideas you need first
+
+- **A package and an installer.** A package is code bundled so others can install it. `pip` is Python's installer; it reads a project's description, installs its dependencies and makes its commands available.
+- **A build backend.** The program pip runs to turn the source folder into an installable file (a **wheel**). `setuptools` is one.
+- **An entry point.** A name that becomes a command: `stock-service-health = "stock_service.interfaces.health_cli:main"` creates a program that calls that function.
+- **Editable install.** `pip install -e .` links the installed project to the source folder, so edits apply without reinstalling.
+
 ## Walkthrough of this repository's use
 
 ```toml

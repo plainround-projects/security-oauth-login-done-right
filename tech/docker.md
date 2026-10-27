@@ -28,6 +28,17 @@ Two reasons. First, the identity provider (Keycloak) runs as a container (`tech/
 5. `docker run` / `docker compose up` creates a container, starts the `CMD` as process number 1, and attaches the isolation settings.
 6. Stopping sends `SIGTERM` to process 1, then `SIGKILL` after a grace period (10 seconds by default). Process 1 here is gunicorn, which handles `SIGTERM` gracefully (`tech/gunicorn.md`).
 
+### Ideas you need first
+
+- **An operating system and a kernel.** The kernel is the core of an operating system: it runs programs and controls memory, files and the network. A container is a normal program started by the kernel with a restricted view of the system.
+- **A process and process number 1.** Every running program is a process. In a container the first process (the one named by `CMD`) is process number 1: it receives the stop signal that Docker sends, so it must handle it.
+- **A signal and graceful shutdown.** A signal is a short message from the operating system to a process. `SIGTERM` means "please stop"; a program that handles it can finish its work and exit cleanly. After a grace period Docker sends `SIGKILL`, which ends the process at once.
+- **A user and root.** Every process runs as a user. `root` can do anything on the machine (inside a container: anything the container is allowed). A **non-root** user cannot write system files or install software, so a compromise does less damage.
+- **A file system and a layer.** An image's files are a stack of read-only layers. A running container adds a thin writable layer on top, unless it is run **read-only**.
+- **A cache.** Docker reuses a layer if the instruction and everything before it are unchanged, which is why the dependency files are copied before the source code.
+- **A health check.** A command Docker runs inside the container at intervals; exit code 0 means healthy.
+- **A registry.** A server that stores images so they can be pulled by name. This repository pulls the base image (`python`) and the database or provider image (`postgres`, `keycloak`) from public registries and does not run one of its own.
+
 ## Walkthrough of this repository's use
 
 ```dockerfile

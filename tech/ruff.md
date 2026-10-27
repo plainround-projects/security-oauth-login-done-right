@@ -25,6 +25,13 @@ This is a security lesson, so the linter's **security rules** (`S`, from the ban
 4. `ruff format --check` exits 1 if formatting would change anything without changing files; `ruff format` rewrites the files.
 5. A trailing `# noqa: CODE` comment tells ruff "ignore this rule on this line". Good practice is to add the reason after it.
 
+### Ideas you need first
+
+- **A linter.** A program that reads source code without running it and reports likely mistakes and style problems.
+- **A formatter.** A program that rewrites code layout (line breaks, quotes, spacing) into one agreed style, so reviews are about meaning.
+- **A rule and its code.** Each check has a short code such as `S608`; the letter prefix is its family. You turn families on with `select`.
+- **A `noqa` comment.** `# noqa: S101` on a line tells the linter to ignore that one rule there; good practice is to write the reason after it.
+
 ## Walkthrough of this repository's use
 
 ```toml

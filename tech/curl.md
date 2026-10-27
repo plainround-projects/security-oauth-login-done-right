@@ -23,6 +23,12 @@ After `make up`, one question matters before anything else: is the identity prov
 2. The **exit code** tells whether the transfer worked: 0 for success; non-zero for failures such as "could not connect" (7) or, with `-f`, an HTTP error status (22).
 3. By default `curl` prints the body even for a 404 or 500 and exits 0. The `-f` flag changes that.
 
+### Ideas you need first
+
+- **A URL.** An address such as `http://localhost:8180/realms/demo`: scheme (`http`), host (`localhost`), port (`8180`) and path.
+- **A request and a response.** `curl` sends a request and prints the response body. With `-i` it also prints the status line and headers.
+- **An exit code.** A number a program returns: 0 for success. Scripts check it.
+
 ## Walkthrough of this repository's use
 
 ```make

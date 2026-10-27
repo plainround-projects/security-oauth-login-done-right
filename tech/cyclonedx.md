@@ -24,6 +24,13 @@ When a new vulnerability is announced ("library X, versions below 2.3"), the fir
 3. It adds a `metadata` block (tool, time, a unique `serialNumber`) and a `dependencies` list.
 4. The output is one JSON document with `bomFormat: CycloneDX` and a `specVersion`.
 
+### Ideas you need first
+
+- **A bill of materials.** A complete list of what something is made of. For software: each library, its exact version, where it came from and a hash of the file.
+- **A standard format.** CycloneDX is an agreed JSON layout for a bill of materials, so any tool can read what another wrote.
+- **A package URL (purl).** A standard way to name a package: `pkg:pypi/flask@3.1.3` means "Flask, version 3.1.3, from PyPI".
+- **A hash.** A fingerprint of a file; if the file changes, the hash changes.
+
 ## Walkthrough of this repository's use
 
 ```make

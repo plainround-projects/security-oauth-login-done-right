@@ -26,6 +26,13 @@ Both Docker Compose and GitHub Actions require YAML for their configuration file
 
 The classic trap: YAML guesses types. `NO`, `off` and `on` can become booleans, `1.10` becomes the number 1.1, and `0123` becomes the octal number 83. So ports and versions are quoted when it matters: `python-version: "3.12"` (unquoted, `3.10` would become `3.1`).
 
+### Ideas you need first
+
+- **A mapping and a list.** A mapping pairs names with values (`image: postgres:18`). A list is a column of items, each starting `- `.
+- **Indentation.** YAML shows "inside" by indenting with spaces. Using a tab, or the wrong number of spaces, changes the meaning or breaks the file.
+- **A comment.** Text after `#` is ignored.
+- **A string, a number and a boolean.** YAML guesses the type from the text. Quote a value (`"3.10"`) when you need it kept as text.
+
 ## Walkthrough of this repository's use
 
 ```yaml

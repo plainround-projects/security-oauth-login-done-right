@@ -28,6 +28,14 @@ Rule one of the lesson: **no secret in code**. The client secret, the demo user'
 3. Docker Compose reads `.env` from the project folder for `${...}` substitution, and `env_file:` injects every line into a container's environment.
 4. In Python, `os.environ` is that dictionary. Every value is a string; the code converts and validates (`int(...)`, allowed sets).
 
+### Ideas you need first
+
+- **A process and its environment.** Every running program (process) receives, when it starts, a private copy of a list of `NAME=value` pairs called its environment. Programs read them to learn how they should behave.
+- **A string.** All environment values are text, even `8047`; a program that wants a number must convert it, and a bad value must be rejected at start-up.
+- **A default.** A value used when the variable is not set. `${NAME:-default}` in Compose and `env.get("NAME", default)` in Python both mean that.
+- **A secret.** A value that must stay private (a password, a key). Plain settings may be shared; secrets must not be committed.
+- **A template file.** `.env.example` has every name and safe local values and is committed; `.env` is your own copy and is not.
+
 ## Walkthrough of this repository's use
 
 The variables the application understands (from `settings.py`):

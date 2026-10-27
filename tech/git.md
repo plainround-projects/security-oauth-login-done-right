@@ -24,6 +24,14 @@ The lesson's controls are only trustworthy if their history is reviewable: each 
 3. `git status` compares three things: the last commit, the staging area and the working folder.
 4. A path matching a pattern in `.gitignore` is invisible to `git add .` and `git status`. It does **not** untrack a file already committed.
 
+### Ideas you need first
+
+- **A repository.** A project folder plus git's hidden database (`.git/`) of every version.
+- **A commit and a hash.** A saved snapshot of the project with a message. Each commit has a hash (a fingerprint of its content and its parent), so history cannot be changed without changing every later hash.
+- **The working folder, the staging area and the history.** Your files as they are now; the changes you have chosen to include in the next commit (`git add`); and the saved commits.
+- **A branch.** A named line of history. `main` is the main line.
+- **A pattern.** A `.gitignore` line such as `*.pyc` or `logs/` names files git should not track.
+
 ## Walkthrough of this repository's use
 
 ```

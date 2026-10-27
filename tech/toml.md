@@ -28,6 +28,13 @@ A TOML file is a set of **key = value** pairs, grouped into **tables** whose nam
 
 `tomllib.load(file)` returns ordinary Python dictionaries and lists, so a tool just reads `data["tool"]["ruff"]["line-length"]`.
 
+### Ideas you need first
+
+- **A configuration file.** A file that holds settings so they can be changed without editing the program.
+- **A key and a value.** `line-length = 120`: the name on the left, the setting on the right.
+- **A table.** A named group of settings. `[tool.ruff]` starts the group for the tool ruff; everything under it until the next header belongs to it.
+- **An array of tables.** `[[tool.importlinter.contracts]]` written several times makes a list; each header adds one item.
+
 ## Walkthrough of this repository's use
 
 ```toml

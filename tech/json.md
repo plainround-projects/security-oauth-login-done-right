@@ -33,6 +33,13 @@ JSON is everywhere in this lesson, not in one place:
 - JSON has **no comment syntax**, which matters for the realm file: its explanations live in the `description` fields and in `docker-compose.yml`'s comments, not in the file.
 - JSON from outside is **untrusted input**. A parsed value might not be a dictionary at all, or lack the key you expect, or hold a number where you expected text.
 
+### Ideas you need first
+
+- **Data as text.** A format lets two programs exchange structured data by writing and reading text.
+- **An object, an array, a string, a number.** A JSON object is `{"key": value}`; an array is `[a, b]`; a string is in double quotes; numbers are bare; `true`, `false` and `null` complete the set.
+- **Parsing.** Reading JSON text into Python dictionaries and lists. Bad JSON raises an error.
+- **A placeholder.** In the realm file, `${NAME}` is not JSON syntax; Keycloak replaces it with an environment variable when it imports the file.
+
 ## Walkthrough of this repository's use
 
 ### The realm file

@@ -28,6 +28,13 @@ Cross-site scripting (**XSS**) happens when a page prints text that someone else
 
 Autoescape is on by default for templates whose names end in `.html`, `.htm`, `.xml` or `.xhtml` when you use Flask's `render_template`.
 
+### Ideas you need first
+
+- **HTML.** The markup language of web pages: text with tags such as `<h1>Title</h1>` (a heading) and `<form>`. The browser draws the page from it.
+- **A template.** An HTML file with holes that the server fills in for each request.
+- **Escaping.** Replacing characters that have a special meaning in HTML (`<`, `>`, `&`, quotes) with harmless codes (`&lt;`, `&gt;`, `&amp;`) so user text cannot become markup.
+- **A block and inheritance.** A base template defines named blocks (`{% block content %}`); child templates `extend` it and fill the blocks.
+
 ## Walkthrough of this repository's use
 
 ### `base.html`

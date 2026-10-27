@@ -20,6 +20,12 @@ Mixed tabs and spaces, Windows and Unix line endings, and trailing whitespace ma
 2. Section headers like `[*.md]` are glob patterns. Properties apply to files that match. Later sections override earlier ones.
 3. The editor applies the properties when you open or save the file. Nothing checks them at build time; the formatter (`ruff format`, `tech/ruff.md`) enforces the Python parts independently.
 
+### Ideas you need first
+
+- **A text editor.** The program you type code in. Different editors have different defaults for tabs, line endings and trailing spaces.
+- **A line ending.** The invisible character(s) that end a line: `LF` on macOS and Linux, `CRLF` on older Windows files. Mixed endings make changes look bigger than they are.
+- **A glob pattern.** A short way to name many files: `*.md` is "every file ending in .md"; `[*.{yml,json}]` is "every .yml or .json file".
+
 ## Walkthrough of this repository's use
 
 ```ini
