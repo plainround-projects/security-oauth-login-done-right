@@ -130,6 +130,124 @@ Docker sends the project folder to the engine (the "build context") before build
 
 The Dockerfile then copies only what it names: the lock file, `pyproject.toml`, `README.md` and `src/`. (`idp/` is not excluded because it is not named by any `COPY`.) Both mechanisms apply together: a file must pass the ignore list *and* be named by a `COPY`.
 
+### Line by line: `.dockerignore`
+
+A `.dockerignore` file lists paths left out of the **build context**, the files `docker build` sends to the builder. A smaller context builds faster and cannot leak local secrets into the image.
+
+```text
+.git
+.venv
+```
+
+The git history and the local virtual environment.
+
+```text
+.env
+.env.*
+!.env.example
+```
+
+`.env` and every `.env.*` are excluded, but `!.env.example` puts the template back (a leading `!` re-includes a path).
+
+```text
+__pycache__
+*.egg-info
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.import_linter_cache
+.omc
+```
+
+Python caches, the installed-package metadata folder, the tool caches and the `.omc` work folder.
+
+```text
+tests
+docs
+logs
+.github
+```
+
+`tests`, `docs`, `logs` and `.github` are not part of the running image.
+
+### Line by line: `Dockerfile`
+
+```dockerfile
+# The app as an image: pinned base, hash-checked dependencies, non-root user, read-only friendly.
+#   docker compose --profile app up -d --wait app      (starts Keycloak first)
+```
+
+The comment: the app as an image with a pinned base, hash-checked dependencies, a non-root user and a read-only-friendly layout; the start command with the compose profile.
+
+```dockerfile
+FROM python:3.12-slim-bookworm@sha256:6dd8b6dab6b3adc7812bab69eca5dbdc1a5cc690ad28306d234ffb4ef8ac9753
+```
+
+`FROM` starts from the `python:3.12-slim-bookworm` image, pinned by digest (`@sha256:...`), so the build always starts from the same content, not from "whatever is newest".
+
+```dockerfile
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+```
+
+`ENV` sets environment variables: no `.pyc` files, unbuffered output (logs appear at once), no pip download cache in the image, and no pip version check over the network.
+
+```dockerfile
+WORKDIR /app
+```
+
+`WORKDIR /app` sets and creates the working folder.
+
+```dockerfile
+COPY requirements.lock ./
+RUN pip install --require-hashes -r requirements.lock
+```
+
+The lock file is copied first, then `pip install --require-hashes -r requirements.lock` installs from it: pip refuses any file whose hash is not listed. Copying the lock before the source means this slow layer is reused when only the code changes.
+
+```dockerfile
+COPY pyproject.toml README.md ./
+COPY src ./src
+RUN pip install --no-deps .
+```
+
+The project metadata and `src` are copied and the project is installed with `--no-deps` (all dependencies are already installed from the lock).
+
+```dockerfile
+# The packaging tools are not needed to run the service, and their vendored libraries are what vulnerability
+# scanners most often flag in a slim image: remove them.
+RUN pip uninstall -y pip setuptools
+```
+
+The packaging tools `pip` and `setuptools` are removed after use: not needed at run time, and the libraries bundled inside them are what vulnerability scanners flag most in a slim image.
+
+```dockerfile
+RUN useradd --system --uid 10001 --no-create-home app
+USER app
+```
+
+`useradd --system --uid 10001 --no-create-home app` creates an unprivileged account and `USER app` runs everything after, and the container, as it. A compromised process then has no root powers.
+
+```dockerfile
+EXPOSE 3000
+```
+
+`EXPOSE 3000` documents the port.
+
+```dockerfile
+HEALTHCHECK --interval=15s --timeout=10s --start-period=30s --retries=5 CMD ["oidc-login-health"]
+```
+
+`HEALTHCHECK` runs the health program every 15 seconds (10-second limit, ignoring failures for the first 30 seconds, unhealthy after 5 failures).
+
+```dockerfile
+CMD ["gunicorn", "-c", "python:oidc_login.interfaces.gunicorn_conf", "oidc_login.interfaces.wsgi:build_app()"]
+```
+
+`CMD` runs gunicorn with the configuration module and the app factory. The list form runs the program directly, without a shell.
+
 ## Try it yourself
 
 (Needs Docker running with free disk space.)

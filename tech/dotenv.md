@@ -100,7 +100,7 @@ from typing import Literal
 from urllib.parse import urlsplit
 ```
 
-Imports: `Mapping`, `dataclass` and `field`, `Literal` and `urlsplit` (splits an address into scheme, host, path and so on).
+Imports: `Mapping`, `dataclass` and `field`, `Literal` and `urlsplit` (splits an address into scheme, host, path and query).
 
 ```python
 AppEnv = Literal["development", "test", "production"]

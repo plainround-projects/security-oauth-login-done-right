@@ -127,6 +127,144 @@ Publish the app on the loopback only. Read-only root file system with a RAM-back
 - `docker compose --profile app up -d --wait --build app`: build and start the app, wait for its image health check.
 - `docker compose --profile app down -v`: remove containers, network and data.
 
+### Line by line: `docker-compose.yml`
+
+```yaml
+# Keycloak 26 in development mode as the local OpenID Connect provider, and the app as an image under the `app` profile.
+# The `demo` realm (client notes-app, client notes-spa, one test user) is imported from idp/realm-demo.json; the secrets in
+# it are placeholders that Keycloak fills from the environment below, which compose reads from .env.
+```
+
+The comment: Keycloak 26 in development mode as the local OpenID Connect provider, and the app as an image under the `app` profile. The realm (client `notes-app`, client `notes-spa`, one test user) is imported from `idp/realm-demo.json`; its secrets are placeholders that Keycloak fills from the environment below, which compose reads from `.env`.
+
+```yaml
+name: security-oauth-login-done-right
+```
+
+`name:` is the project name, which prefixes network and container names.
+
+```yaml
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+```
+
+`services:` lists the containers; the first is `keycloak`, from the official image `quay.io/keycloak/keycloak:26.4`.
+
+```yaml
+    command: ["start-dev", "--import-realm"]
+```
+
+`command: ["start-dev", "--import-realm"]`: `start-dev` runs Keycloak in development mode (plain HTTP, in-memory-friendly defaults; not for production) and `--import-realm` imports the files from its import folder.
+
+```yaml
+    ports:
+      - "127.0.0.1:${KEYCLOAK_PORT:-8180}:8080"
+```
+
+`ports` publishes the container's 8080 on the machine, only on `127.0.0.1` (loopback), at the port `KEYCLOAK_PORT` or 8180.
+
+```yaml
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?copy .env.example to .env first}
+```
+
+The environment: the first admin's name (`KC_BOOTSTRAP_ADMIN_USERNAME`, default `admin`) and password. `${VAR:?message}` stops compose with the message if the variable is empty, so a missing `.env` is noticed at once.
+
+```yaml
+      KC_HEALTH_ENABLED: "true"
+```
+
+`KC_HEALTH_ENABLED: "true"` turns on the health endpoints.
+
+```yaml
+      # The issuer and the browser-facing URLs are fixed to what the browser uses; back-channel URLs follow the caller's host,
+      # so the app container (profile `app`) can reach the provider as http://keycloak:8080 and still see the same issuer.
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8180}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+```
+
+The comment and settings explain the addresses. `KC_HOSTNAME` fixes the issuer and the browser-facing addresses to `http://localhost:<port>`. `KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"` lets back-channel addresses follow the caller's host, so the app container can reach Keycloak as `http://keycloak:8080` and still see the same issuer in tokens.
+
+```yaml
+      # Placeholders in the realm file.
+      NOTES_APP_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?copy .env.example to .env first}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:?copy .env.example to .env first}
+      APP_BASE_URL: http://localhost:${APP_PORT:-3000}
+```
+
+The placeholders of the realm file: the app's client secret, the demo user's password and the app's base address, taken from compose variables.
+
+```yaml
+    volumes:
+      - ./idp/realm-demo.json:/opt/keycloak/data/import/realm-demo.json:ro
+```
+
+`volumes` mounts the realm file into Keycloak's import folder, read-only (`:ro`).
+
+```yaml
+    healthcheck:
+      # The image has no curl; the management port (9000) answers /health/ready once the realm is imported.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"status\": \"UP\"' <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 120
+      start_period: 20s
+```
+
+The health check: a comment says the image has no `curl`; the management port 9000 answers `/health/ready` once the realm is imported. The test runs a shell: it opens a TCP connection to 127.0.0.1:9000 as file descriptor 3 (`exec 3<>/dev/tcp/...`), writes an HTTP request into it, and `grep -q` looks for `"status": "UP"` in the answer. It runs every 5 seconds with a 5-second limit, up to 120 tries, ignoring failures for the first 20 seconds.
+
+```yaml
+  app:
+    profiles: ["app"]
+    build: .
+    image: security-oauth-login-done-right:dev
+```
+
+The second service, `app`, is under `profiles: ["app"]`: it starts only when that profile is asked for. It is built from the `Dockerfile` here and tagged.
+
+```yaml
+    depends_on:
+      keycloak:
+        condition: service_healthy
+```
+
+It starts only after Keycloak is healthy.
+
+```yaml
+    env_file: .env
+    environment:
+      APP_HOST: 0.0.0.0
+      OIDC_DISCOVERY_BASE: http://keycloak:8080/realms/demo
+```
+
+`env_file: .env` loads the variables; `environment` overrides two: listen on `0.0.0.0` (all interfaces in the container) and fetch discovery from `http://keycloak:8080/realms/demo` (the compose network name).
+
+```yaml
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:${APP_PORT:-3000}"
+```
+
+The app is published on loopback only.
+
+```yaml
+    read_only: true
+    tmpfs:
+      - /tmp
+```
+
+`read_only: true` makes the root file system read-only; `tmpfs: /tmp` gives a writable temporary folder in memory.
+
+```yaml
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+```
+
+`cap_drop: ALL` removes every Linux capability and `no-new-privileges:true` stops processes from gaining privileges.
+
 ## Try it yourself
 
 1. Check the file without starting anything:

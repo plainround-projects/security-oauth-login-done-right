@@ -117,6 +117,364 @@ One user. The password is a placeholder, filled from `DEMO_USER_PASSWORD` in `.e
 
 `OidcProvider` reads the discovery document once (with retries on transient failures), checks that its `issuer` equals the configured `OIDC_ISSUER`, and uses the endpoints it lists. The `/readyz` route of the app answers 503 when the provider is unreachable; `/healthz` stays 200, so a provider restart does not make the app look dead.
 
+### Line by line: `idp/realm-demo.json`
+
+A Keycloak **realm** is one self-contained set of users, clients and settings. This JSON file describes the `demo` realm; Keycloak reads it at start-up (`--import-realm`) and creates everything in it. **JSON** is a text format of objects `{ "name": value }`, lists `[ ... ]`, texts, numbers and `true`/`false` (`tech/json.md`). A text like `${NAME}` is a **placeholder**: Keycloak replaces it with the value of that environment variable when it imports the file, so no secret is stored in the file. The meaning of each key below is from Keycloak's realm representation; the import and placeholder behaviour was checked against its documentation.
+
+```json
+{
+  "realm": "demo",
+```
+
+The object starts. `"realm": "demo"` is the realm's name; it is part of every address (`/realms/demo/...`) and of the issuer.
+
+```json
+  "displayName": "Plainround demo realm",
+  "enabled": true,
+```
+
+`displayName` is the human-readable name; `enabled: true` turns the realm on.
+
+```json
+  "sslRequired": "external",
+```
+
+`sslRequired: "external"` means HTTPS is required for requests that come from outside the local machine or private networks; plain HTTP is allowed from `localhost`, which is what the demo uses.
+
+```json
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "loginWithEmailAllowed": false,
+  "duplicateEmailsAllowed": false,
+```
+
+Four self-service features switched off: nobody can register themselves (`registrationAllowed`), reset a password by email (`resetPasswordAllowed`), stay signed in with "remember me" (`rememberMe`) or sign in by email address instead of username (`loginWithEmailAllowed`); two users cannot share an email (`duplicateEmailsAllowed: false`).
+
+```json
+  "bruteForceProtected": true,
+  "failureFactor": 10,
+```
+
+`bruteForceProtected: true` makes Keycloak temporarily lock an account after repeated wrong passwords; `failureFactor: 10` is the number of failures that triggers it.
+
+```json
+  "accessTokenLifespan": 120,
+```
+
+`accessTokenLifespan: 120`: an access token is valid for 120 seconds. Short lifetimes limit the damage of a stolen token; the app refreshes it when needed.
+
+```json
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 28800,
+```
+
+`ssoSessionIdleTimeout: 1800` ends the provider's own session after 30 minutes idle; `ssoSessionMaxLifespan: 28800` ends it after 8 hours whatever happens. These bound how long a refresh token can keep working.
+
+```json
+  "accessCodeLifespan": 60,
+```
+
+`accessCodeLifespan: 60`: the one-time authorization code must be exchanged within 60 seconds.
+
+```json
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+```
+
+`revokeRefreshToken: true` with `refreshTokenMaxReuse: 0` turns on refresh token rotation: each refresh token can be used exactly once, and using an old one again fails with `invalid_grant`.
+
+```json
+  "defaultSignatureAlgorithm": "RS256",
+```
+
+`defaultSignatureAlgorithm: "RS256"`: tokens are signed with an RSA key and SHA-256, the algorithm on the app's allow-list.
+
+```json
+  "clientScopes": [
+```
+
+`clientScopes` is the list of scopes this realm defines. A **client scope** is a named bundle that decides which claims are added to tokens when a client asks for that scope.
+
+```json
+    {
+      "name": "profile",
+      "description": "The user's name, as claims in the ID token and userinfo",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+```
+
+The first scope is `profile`: a description, the protocol `openid-connect`, and attributes: `include.in.token.scope` puts the scope name in the token's `scope` claim and `display.on.consent.screen: false` hides it from a consent page.
+
+```json
+      "protocolMappers": [
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+```
+
+`protocolMappers` say how to fill claims. The first mapper, `username`, is of the type `oidc-usermodel-property-mapper`: it copies a property of the user into a claim. `user.attribute: username` is the source and `claim.name: preferred_username` the claim; `jsonType.label: String` makes it text; and the three `... .claim` switches put the claim in the ID token, the access token and the userinfo answer.
+
+```json
+        {
+          "name": "given name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "firstName",
+            "claim.name": "given_name",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+```
+
+The second mapper copies the user's first name into the claim `given_name`, in all three places.
+
+```json
+        {
+          "name": "family name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "lastName",
+            "claim.name": "family_name",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+```
+
+The third copies the last name into `family_name`; the `]` and `}` close the mapper list and the scope.
+
+```json
+    {
+      "name": "email",
+      "description": "The user's email address, as claims in the ID token and userinfo",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+```
+
+The scope `email` has the same attributes.
+
+```json
+      "protocolMappers": [
+        {
+          "name": "email",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "email",
+            "claim.name": "email",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+```
+
+Its mapper copies the user's `email` property into the claim `email` in the ID token, access token and userinfo; the brackets close the scope.
+
+```json
+    {
+      "name": "reports:read",
+      "description": "Read the sample reports (the elevated scope the /reports route needs)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    }
+```
+
+The scope `reports:read` is the elevated scope that the `/reports` route needs. It has no mapper because it changes nothing in the claims; its presence in the token's `scope` claim is the point.
+
+```json
+  ],
+  "clients": [
+```
+
+The list of scopes ends and `clients` starts. A **client** is an application registered with the provider.
+
+```json
+    {
+      "clientId": "notes-app",
+      "name": "Notes app (confidential client)",
+      "description": "The server-side app of this project: authorization code flow with PKCE, exactly one redirect URI.",
+      "enabled": true,
+      "protocol": "openid-connect",
+```
+
+The first client is `notes-app`, the server-side app: id, display name and description, enabled, using OpenID Connect.
+
+```json
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${NOTES_APP_CLIENT_SECRET}",
+```
+
+`publicClient: false` makes it a **confidential client** (it can keep a secret). `clientAuthenticatorType: "client-secret"` means it proves who it is with a secret; the secret is the placeholder `${NOTES_APP_CLIENT_SECRET}`.
+
+```json
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+```
+
+`standardFlowEnabled: true` allows the authorization code flow. The other three are off: `implicitFlowEnabled` (tokens in the address; insecure), `directAccessGrantsEnabled` (the password grant, where the app would see the user's password) and `serviceAccountsEnabled` (machine-to-machine sign-in).
+
+```json
+      "fullScopeAllowed": true,
+```
+
+`fullScopeAllowed: true` does not restrict which of the user's roles may go into tokens (this realm defines no roles).
+
+```json
+      "redirectUris": [
+        "${APP_BASE_URL}/callback"
+      ],
+```
+
+`redirectUris` has exactly one entry, `${APP_BASE_URL}/callback`, filled in at import. Keycloak compares the redirect address in a login request with this list exactly; no wildcard, so look-alike addresses are refused.
+
+```json
+      "webOrigins": [],
+```
+
+`webOrigins: []` allows no browser cross-origin requests.
+
+```json
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "",
+        "use.refresh.tokens": "true"
+      },
+```
+
+`pkce.code.challenge.method: "S256"` makes PKCE with S256 mandatory for this client. `post.logout.redirect.uris` is empty (no post-logout redirect) and `use.refresh.tokens: "true"` allows refresh tokens.
+
+```json
+      "optionalClientScopes": [
+        "reports:read"
+      ],
+```
+
+`optionalClientScopes`: `reports:read` is granted only when the app asks for it.
+
+```json
+      "defaultClientScopes": [
+        "profile",
+        "email"
+      ]
+```
+
+`defaultClientScopes`: `profile` and `email` are always included.
+
+```json
+    {
+      "clientId": "notes-spa",
+      "name": "Notes single-page app (public client, stretch goal)",
+      "description": "A public client has no secret, so PKCE is what protects its code exchange; the provider refuses the exchange without a verifier.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+```
+
+The second client, `notes-spa`, a stretch goal: a **public client** (`publicClient: true`, no secret, like a browser-only app), standard flow only, the other three off.
+
+```json
+      "redirectUris": [
+        "http://localhost:3001/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:3001"
+      ],
+```
+
+One exact redirect address, `http://localhost:3001/callback`, and one allowed web origin.
+
+```json
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+```
+
+PKCE with S256 is mandatory. With no secret, PKCE is the only protection of its code exchange, and the provider refuses the exchange without a verifier.
+
+```json
+  ],
+  "users": [
+```
+
+The clients end and `users` starts.
+
+```json
+    {
+      "username": "demo-user",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "demo-user@example.test",
+      "firstName": "Demo",
+      "lastName": "User",
+```
+
+The one user: `demo-user`, enabled, email verified, with an email on the reserved `example.test` domain, a first and a last name.
+
+```json
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${DEMO_USER_PASSWORD}",
+          "temporary": false
+        }
+      ]
+```
+
+`credentials`: a password whose value is the placeholder `${DEMO_USER_PASSWORD}` and `temporary: false` (the user is not forced to change it).
+
+```json
+    }
+  ]
+}
+```
+
+The closing brackets of the user list and of the file.
+
 ## Try it yourself
 
 (Needs Docker and `make up`; Keycloak's first start can take minutes on a busy machine.)

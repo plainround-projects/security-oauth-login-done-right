@@ -95,6 +95,100 @@ Every `run:` line is a `make` target a developer also runs. The workflow has alm
 
 `actionlint .github/workflows/ci.yml` (the workflow linter) reports no problems on this file.
 
+### Line by line: `.github/workflows/ci.yml`
+
+```yaml
+name: ci
+
+on: [push, pull_request]
+```
+
+The workflow's name, and `on: [push, pull_request]`: run on every push and pull request.
+
+```yaml
+permissions:
+  contents: read
+```
+
+Read-only permission for the automatic token by default.
+
+```yaml
+jobs:
+  check:
+    name: Format, lint (with security rules), types, import rules, unit tests with coverage, dependency audit, SBOM
+    runs-on: ubuntu-latest
+    steps:
+```
+
+The `jobs:` block starts with `check` on a Linux runner.
+
+```yaml
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+```
+
+`actions/checkout` pinned to a full commit hash (a tag can be moved, a hash cannot); `persist-credentials: false` stops it leaving the token in git's configuration.
+
+```yaml
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+```
+
+`actions/setup-python` installs Python 3.12, also pinned by hash.
+
+```yaml
+      - run: make check
+      - run: make audit
+      - run: make sbom
+```
+
+`make check`, `make audit` and `make sbom` run the same targets as a laptop.
+
+```yaml
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+```
+
+`actions/upload-artifact` keeps `sbom.cdx.json` as a downloadable file named `sbom-cyclonedx`.
+
+```yaml
+  provider:
+    name: Integration and end-to-end tests against Keycloak 26
+    runs-on: ubuntu-latest
+```
+
+The second job, `provider`, runs the tests that need Keycloak 26.
+
+```yaml
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+```
+
+Checkout and Python as before.
+
+```yaml
+      - run: make up
+      - run: make test-integration test-e2e
+```
+
+`make up` starts Keycloak with the demo realm; `make test-integration test-e2e` runs both levels.
+
+```yaml
+      - if: always()
+        run: make down
+```
+
+`if: always()` runs the last step even if an earlier one failed, so `make down` always cleans up.
+
 ## Try it yourself
 
 1. Lint the workflow:

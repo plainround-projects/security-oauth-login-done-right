@@ -93,6 +93,187 @@ A version rule such as `flask>=3.1,<4` means "any version from 3.1 up to but not
 
 **What "editable install" does.** `pip install -e .` does not copy the code into the environment. It records a link to `src/`, so edits are used immediately. The metadata folder `src/security_oauth_login_done_right.egg-info/` is what pip reads to know the project's name, version and commands; it is regenerated and ignored by git.
 
+### Line by line: `pyproject.toml`
+
+`pyproject.toml` is the project's main settings file in TOML (`tech/toml.md`). `[name]` starts a **table** (a group of settings); `[[name]]` adds one item to a list of tables.
+
+```toml
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+```
+
+`[build-system]`: pip builds the project with `setuptools` 75 or newer, through `setuptools.build_meta`.
+
+```toml
+[project]
+name = "security-oauth-login-done-right"
+version = "0.1.0"
+description = "Sign-in with an OpenID Connect provider done right: authorization code flow with PKCE, validated ID tokens, server-side sessions with refresh rotation, and tests that show why each check is there."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Sumit Srivastava" }]
+```
+
+`[project]` is the standard metadata: name, version, description, readme, `requires-python = ">=3.12"`, license and authors.
+
+```toml
+dependencies = [
+    "flask>=3.1,<4",
+    "gunicorn>=23,<26",
+    "httpx>=0.27,<1",
+    "PyJWT[crypto]>=2.9,<3",
+]
+```
+
+`dependencies` is what the app needs to run, each with a **version range** (`flask>=3.1,<4` means 3.1 or newer but below 4). `PyJWT[crypto]` asks for the **extra** `crypto`, which installs the `cryptography` package that RS256 verification needs.
+
+```toml
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<10",
+    "pytest-cov>=5",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "import-linter>=2.0",
+    "pip-audit>=2.7",
+    "cyclonedx-bom>=5,<8",
+]
+```
+
+`[project.optional-dependencies]` defines the group `dev` (installed with `pip install -e ".[dev]"`): `pytest` and `pytest-cov`, `ruff`, `mypy`, `import-linter`, `pip-audit` and `cyclonedx-bom`.
+
+```toml
+[project.scripts]
+oidc-login-health = "oidc_login.interfaces.health_cli:main"
+oidc-login-demo = "oidc_login.interfaces.demo_cli:main"
+```
+
+`[project.scripts]` creates two commands, `oidc-login-health` and `oidc-login-demo`, each calling the named function.
+
+```toml
+[tool.setuptools.packages.find]
+where = ["src"]
+```
+
+`[tool.setuptools.packages.find]` with `where = ["src"]` looks for packages inside `src/` (the **src layout**).
+
+```toml
+[tool.setuptools.package-data]
+"oidc_login.interfaces.http" = ["templates/*.html", "static/*.css"]
+```
+
+`package-data` includes the template and CSS files in the installed package.
+
+```toml
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "tests"]
+```
+
+`[tool.ruff]`: line length 120, Python 3.12 syntax, and `src` lists the folders of the project's own code for import sorting.
+
+```toml
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "N", "C4", "RUF", "PT", "S", "DTZ", "D100", "D101", "D103", "D104"]
+```
+
+`[tool.ruff.lint]` selects rule families: `E` style errors, `F` mistakes, `I` import order, `B` likely bugs, `UP` outdated syntax, `SIM` simplifications, `N` naming, `C4` comprehensions, `RUF` ruff's own rules, `PT` pytest style, `S` security rules, `DTZ` datetimes without time zones and the docstring rules `D100`, `D101`, `D103` and `D104`.
+
+```toml
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D", "S101", "S105", "S106", "S603", "S607"]  # tests start this project's own server process
+```
+
+`per-file-ignores`: tests may skip docstrings, use `assert` (`S101`), hold password-looking strings (`S105`, `S106`) and start subprocesses (`S603`, `S607`); the comment says tests start this project's own server process.
+
+```toml
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "tests"]
+```
+
+`[tool.mypy]`: Python 3.12, `strict = true`, and the folders to check.
+
+```toml
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+```
+
+`[[tool.mypy.overrides]]` relaxes three checks for `tests.*` only.
+
+```toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+```
+
+`[tool.pytest.ini_options]`: `testpaths` and `addopts` of `-ra` (summarize everything that did not pass) and `--strict-markers` (unknown markers are errors).
+
+```toml
+markers = [
+    "integration: needs the identity provider from docker-compose.yml (make up)",
+    "e2e: the sign-in scenario over real HTTP against a started server and the provider (make up)",
+]
+```
+
+`markers` registers `integration` and `e2e` with a description each.
+
+```toml
+[tool.coverage.run]
+source = ["oidc_login"]
+branch = true
+```
+
+`[tool.coverage.run]` measures `oidc_login` with branch coverage.
+
+```toml
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+```
+
+`[tool.coverage.report]`: list missing line numbers; do not hide covered files.
+
+```toml
+[tool.importlinter]
+root_package = "oidc_login"
+include_external_packages = true
+```
+
+`[tool.importlinter]`: the package to analyze, and `include_external_packages = true` so rules can name third-party packages.
+
+```toml
+[[tool.importlinter.contracts]]
+name = "Layers: interfaces -> infrastructure -> application -> domain, never upward"
+type = "layers"
+layers = [
+    "oidc_login.interfaces",
+    "oidc_login.infrastructure",
+    "oidc_login.application",
+    "oidc_login.domain",
+]
+
+[[tool.importlinter.contracts]]
+```
+
+The `layers` contract: listed from the highest to the lowest, each layer may import only the layers below it.
+
+```toml
+name = "Domain and application know nothing about Flask, httpx or the JWT library"
+type = "forbidden"
+source_modules = ["oidc_login.domain", "oidc_login.application"]
+forbidden_modules = ["flask", "werkzeug", "jinja2", "httpx", "jwt", "cryptography"]
+```
+
+A `forbidden` contract: the domain and application layers may not import Flask, Werkzeug, Jinja2, httpx, jwt or cryptography, so the rules of the program stay independent of web, HTTP-client and cryptography libraries.
+
 ## Try it yourself
 
 1. See the installed commands:

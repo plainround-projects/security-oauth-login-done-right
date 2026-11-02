@@ -147,6 +147,215 @@ The stamp file works as follows. `make test` needs `.venv/.installed`. If that f
 
 `.PHONY:` lists the names that are jobs and not files. `-include .env` reads `.env` if it exists; the bare `export` passes every variable to every recipe, which is how `OIDC_ISSUER` reaches `idp-check`.
 
+### Line by line: `Makefile`
+
+Read the file as a list of **rules**: a line `target: prerequisites` followed by indented **recipe** lines (shell commands). Each recipe line starts with a tab character and runs in its own `/bin/sh`. The `##` text after a target is a comment that `make help` prints.
+
+```make
+# make up | run | demo | test | test-integration | test-e2e | lint | audit | sbom | down      (make help lists everything)
+```
+
+A comment listing the main targets.
+
+```make
+PYTHON ?= $(shell command -v python3.13 || command -v python3.12 || command -v python3)
+```
+
+`PYTHON ?= ...` sets the variable only if it is not already set. `$(shell ...)` runs a command and uses its output; `command -v` prints the path of a program if it exists and `||` tries the next one if not. So Python 3.13 is used if present, else 3.12, else any `python3`.
+
+```make
+VENV := .venv
+PY := $(VENV)/bin/python
+STAMP := $(VENV)/.installed
+```
+
+`:=` assigns once, at this line. `VENV` is the folder of the **virtual environment** (a private folder with its own Python and installed packages). `PY` is the Python inside it. `STAMP` is an empty marker file recording that the install is done.
+
+```make
+SERVE := $(VENV)/bin/gunicorn -c python:oidc_login.interfaces.gunicorn_conf "oidc_login.interfaces.wsgi:build_app()"
+```
+
+`SERVE` is the gunicorn command line used by the `run` target.
+
+```make
+-include .env
+export
+```
+
+`-include .env` reads `.env` as more make variables if it exists (the `-` means no error if it is missing); a bare `export` passes every make variable to the recipes as environment variables. That is how `OIDC_ISSUER` reaches the `idp-check` target.
+
+```make
+.PHONY: help install env up idp-check run demo health lint format test test-integration test-e2e test-all audit sbom \
+        check docker-build docker-run down clean
+```
+
+`.PHONY` lists targets that are names, not files, so a file called `test` cannot make `make test` do nothing. The backslash continues the line.
+
+```make
+help: ## list the targets
+	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed -E 's/:.*## /\t/' | sort
+```
+
+`help` runs `grep` to select lines like `name: ... ## text` from all makefiles (`-h` hides file names, `-E` enables extended patterns), `sed` to turn `: ... ## ` into a tab, and `sort`. `@` hides the command itself.
+
+```make
+$(STAMP): requirements-dev.lock pyproject.toml
+	$(PYTHON) -m venv $(VENV)
+	$(VENV)/bin/pip install -q --require-hashes -r requirements-dev.lock
+	$(VENV)/bin/pip install -q --no-deps -e .
+	touch $@
+```
+
+The stamp rule depends on the lock file and `pyproject.toml`. It creates the virtual environment, installs the development lock with `--require-hashes` (pip refuses a package whose hash is not listed), installs the project itself with `--no-deps -e .` (an **editable** install that uses `src/` directly) and creates the stamp (`$@` is the target's name).
+
+```make
+install: $(STAMP) ## create .venv from the lock file
+```
+
+`install` depends on the stamp.
+
+```make
+env:
+	@[ -f .env ] || { cp .env.example .env; echo "created .env from .env.example"; }
+```
+
+`env` copies `.env.example` to `.env` if `.env` does not exist.
+
+```make
+# Start Keycloak and wait until the demo realm is imported and the provider answers.
+up: env $(STAMP) ## start the identity provider (Keycloak) with the demo realm and wait until it is ready
+	docker compose up -d --wait keycloak
+	@$(MAKE) --no-print-directory idp-check
+```
+
+`up` needs `env` and the stamp. `docker compose up -d --wait keycloak` starts Keycloak in the background and waits for its health check; then `$(MAKE) --no-print-directory idp-check` runs the next target. The leading `@` hides the command.
+
+```make
+idp-check: ## step 1: the discovery document and the signing keys are reachable
+	@curl -fsS $(OIDC_ISSUER)/.well-known/openid-configuration | $(PY) -c "import json,sys; d=json.load(sys.stdin); print('issuer                ', d['issuer']); print('authorization_endpoint', d['authorization_endpoint']); print('jwks_uri              ', d['jwks_uri'])"
+	@curl -fsS $(OIDC_ISSUER)/protocol/openid-connect/certs | $(PY) -c "import json,sys; print('signing keys          ', len(json.load(sys.stdin)['keys']))"
+```
+
+`idp-check` uses `curl` (`tech/curl.md`) with `-f` (fail on an HTTP error status), `-s` (silent) and `-S` (but show errors) to fetch the discovery document and then the signing keys, and pipes each into a short Python program (`python -c "..."`) that parses the JSON and prints the issuer, the authorization endpoint, the keys address and the number of signing keys. The `|` pipe sends one program's output to the next program's input.
+
+```make
+# Foreground server: gunicorn on APP_HOST:APP_PORT, SIGTERM or Ctrl-C shuts it down gracefully.
+run: env $(STAMP) ## start the app on http://localhost:3000 (needs make up)
+	$(SERVE)
+```
+
+`run` starts the app in the foreground; SIGTERM or Ctrl-C shuts it down gracefully.
+
+```make
+demo: env $(STAMP) ## run the lesson's scenario against the provider: sign-in, each protection, refresh, logout (needs make up)
+	$(PY) -m oidc_login.interfaces.demo_cli
+```
+
+`demo` runs the scenario: `python -m oidc_login.interfaces.demo_cli` (`-m` runs a module).
+
+```make
+health: $(STAMP) ## exit 0 when the running app answers /healthz
+	$(VENV)/bin/oidc-login-health
+```
+
+`health` runs the health program.
+
+```make
+lint: $(STAMP) ## ruff check (with security rules), ruff format check, mypy, import-linter
+	$(VENV)/bin/ruff check .
+	$(VENV)/bin/ruff format --check .
+	$(VENV)/bin/mypy
+	$(VENV)/bin/lint-imports
+```
+
+`lint` runs four checks, stopping at the first failure: `ruff check .`, `ruff format --check .`, `mypy` and `lint-imports`.
+
+```make
+format: $(STAMP) ## apply ruff's formatting and safe fixes
+	$(VENV)/bin/ruff check --fix .
+	$(VENV)/bin/ruff format .
+```
+
+`format` applies ruff's safe fixes and formatting.
+
+```make
+# Unit tests need no provider. The domain and application must stay at 95% coverage or more.
+test: $(STAMP) ## unit tests with coverage (no provider needed)
+	$(PY) -m pytest tests/unit --cov=oidc_login --cov-report=term
+	$(PY) -m coverage report --include='src/oidc_login/domain/*,src/oidc_login/application/*' --fail-under=95
+```
+
+`test` runs the unit tests with coverage, then `coverage report` for the domain and application folders with `--fail-under=95`: it fails if less than 95 percent of those lines ran.
+
+```make
+test-integration: $(STAMP) ## the provider adapter, token validation and the flow protections against Keycloak (needs make up)
+	$(PY) -m pytest tests/integration -m integration -v
+```
+
+`test-integration` runs the tests marked `integration` against Keycloak, verbosely.
+
+```make
+test-e2e: $(STAMP) ## a real server process, a scripted browser and Keycloak (needs make up)
+	$(PY) -m pytest tests/e2e -m e2e -v
+```
+
+`test-e2e` runs the tests marked `e2e`: a real server process, a scripted browser and Keycloak.
+
+```make
+test-all: test test-integration test-e2e ## every test level (needs make up)
+```
+
+`test-all` is a list of other targets.
+
+```make
+audit: $(STAMP) ## check the locked dependencies for known vulnerabilities
+	$(VENV)/bin/pip-audit --no-deps --disable-pip -r requirements-dev.lock
+```
+
+`audit` runs `pip-audit` on the lock (`--no-deps` stops it resolving more packages, `--disable-pip` stops it building a temporary environment).
+
+```make
+sbom: $(STAMP) ## write sbom.cdx.json (CycloneDX) for the locked runtime dependencies
+	$(VENV)/bin/cyclonedx-py requirements requirements.lock --of JSON -o sbom.cdx.json
+	@echo "wrote sbom.cdx.json"
+```
+
+`sbom` writes a CycloneDX bill of materials of the runtime lock file and prints a line.
+
+```make
+check: lint test ## everything that needs no provider
+```
+
+`check` runs `lint` and `test`.
+
+```make
+docker-build: ## build the container image
+	docker build -t security-oauth-login-done-right:dev .
+```
+
+`docker-build` builds the image and tags it.
+
+```make
+docker-run: env ## run the image next to Keycloak and wait until it is healthy
+	docker compose --profile app up -d --wait --build app
+```
+
+`docker-run` starts the `app` service (in the compose profile `app`), building it first and waiting for its health.
+
+```make
+down: ## stop the containers and delete their data
+	docker compose --profile app down -v
+```
+
+`down` stops the containers and deletes their data (`-v`).
+
+```make
+clean: down
+	rm -rf $(VENV) logs .pytest_cache .mypy_cache .ruff_cache .import_linter_cache .coverage sbom.cdx.json
+```
+
+`clean` removes the environment, logs, caches and the SBOM.
+
 ## Try it yourself
 
 1. List every target with its description:
