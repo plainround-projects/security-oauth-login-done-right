@@ -94,6 +94,105 @@ Runs in each worker as it exits. `close_all()` closes the HTTP client of every a
 
 `-c python:oidc_login.interfaces.gunicorn_conf` loads the configuration from an importable Python module instead of a file path (`python:` prefix). `"oidc_login.interfaces.wsgi:build_app()"` is the **application factory** form: gunicorn calls `build_app()` in each worker. `build_app()` reads `Settings.from_environment(os.environ)` first, so a missing `NOTES_DB_PASSWORD` stops the worker at start-up with a clear error rather than after serving traffic.
 
+### Line by line: `src/oidc_login/interfaces/gunicorn_conf.py`
+
+```python
+"""gunicorn settings.
+
+Start with ``gunicorn -c python:oidc_login.interfaces.gunicorn_conf "oidc_login.interfaces.wsgi:build_app()"``.
+
+One worker with several threads: sessions and pending logins live in this process's memory (see ARCHITECTURE.md).
+SIGTERM makes the master stop accepting connections and lets in-flight requests finish (up to ``graceful_timeout``)
+before the worker closes its HTTP client in ``worker_exit``.
+"""
+```
+
+The docstring: the start command, and the reason for a single worker: sessions and pending logins live in this process's memory, so a second worker would not know about them. SIGTERM (the polite stop signal) makes the master stop accepting connections and lets running requests finish for up to `graceful_timeout` seconds before the worker closes its HTTP client in `worker_exit`.
+
+```python
+from __future__ import annotations
+
+import os
+from typing import Any
+```
+
+Type hints kept as text, `os` and `Any`. In a gunicorn configuration file each module-level variable is one setting.
+
+```python
+bind = f"{os.environ.get('APP_HOST', '127.0.0.1')}:{os.environ.get('APP_PORT', '3000')}"
+```
+
+`bind` is the address and port to listen on, from `APP_HOST` and `APP_PORT`, default `127.0.0.1:3000`.
+
+```python
+workers = 1
+threads = 8
+worker_class = "gthread"
+```
+
+`workers = 1`: one worker **process**. `threads = 8` with `worker_class = "gthread"`: eight **threads** (lightweight lines of execution inside the process) to serve requests at the same time.
+
+```python
+timeout = 30
+```
+
+`timeout = 30`: a worker silent for 30 seconds is killed and restarted.
+
+```python
+graceful_timeout = 20
+```
+
+`graceful_timeout = 20`: after a stop signal, workers get 20 seconds to finish.
+
+```python
+keepalive = 5
+```
+
+`keepalive = 5`: wait five seconds for another request on an open connection.
+
+```python
+control_socket_disable = True
+```
+
+`control_socket_disable = True` turns off gunicorn's local control socket.
+
+```python
+limit_request_line = 4094
+limit_request_fields = 50
+```
+
+`limit_request_line = 4094` and `limit_request_fields = 50` cap the first line of a request and the number of headers.
+
+```python
+accesslog = None  # the application writes one structured line per request
+errorlog = "-"
+```
+
+`accesslog = None` (the application writes one structured line per request) and `errorlog = "-"` (standard error).
+
+```python
+logconfig_dict: dict[str, Any] = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"json": {"()": "oidc_login.infrastructure.logging.JsonFormatter"}},
+    "handlers": {"stderr": {"class": "logging.StreamHandler", "formatter": "json", "stream": "ext://sys.stderr"}},
+    "root": {"level": "INFO", "handlers": ["stderr"]},
+    "loggers": {"gunicorn.error": {"handlers": ["stderr"], "level": "INFO", "propagate": False}},
+}
+```
+
+`logconfig_dict` is a Python logging configuration: version 1; keep other loggers; a formatter built by calling the `JsonFormatter` class (the `"()"` key); a handler writing to standard error (`ext://sys.stderr` names the real stream); the root at `INFO`; and `gunicorn.error` using the same handler and not passing messages up, so each appears once as JSON.
+
+```python
+def worker_exit(server: object, worker: object) -> None:
+    """Called in the worker as it exits: close the provider's HTTP client."""
+    from oidc_login.interfaces.wsgi import close_all
+
+    close_all()
+```
+
+`worker_exit` is a **hook** gunicorn calls in the worker as it exits; it imports `close_all` inside the function and closes the provider's HTTP client.
+
 ## Try it yourself
 
 1. Check the version and your settings load:

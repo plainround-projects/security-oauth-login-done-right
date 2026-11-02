@@ -95,6 +95,119 @@ Autoescape is on by default for templates whose names end in `.html`, `.htm`, `.
 ```
 Signed-out visitors get a plain link to `/login`, which starts the redirect to the provider. The second link is shown only when `reports:read` is on the allow-list; `| urlencode` percent-encodes the value for use inside a URL (`reports:read` becomes `reports%3Aread`), a different escaping from HTML escaping because the context (a URL) is different.
 
+### Line by line: `src/oidc_login/interfaces/http/templates/base.html`
+
+A **template** is an HTML file with holes. Jinja2 fills the holes and sends the finished HTML to the browser. `{{ ... }}` is replaced by a value; `{% ... %}` is an instruction. Flask's template engine encodes every `{{ value }}` for HTML, so text from a user shows as text and cannot run as script.
+
+```html
+<!doctype html>
+<html lang="en">
+```
+
+`<!doctype html>` says this is modern HTML; `<html lang="en">` declares the language.
+
+```html
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+```
+
+The `<head>`: the text encoding, and the `viewport` meta that makes the page fit phone screens.
+
+```html
+  <title>{% block title %}Notes sign-in{% endblock %}</title>
+```
+
+The tab title, with a block `title` that child pages can replace; the default is "Notes sign-in".
+
+```html
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+```
+
+The stylesheet is loaded from the site itself; there is no script tag anywhere, which the content security policy would forbid anyway.
+
+```html
+<body>
+  <header><a class="brand" href="/">Notes</a></header>
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>
+```
+
+The `<body>` has a header with a link to the home page and a `<main>` area holding the block `content`, which each page fills.
+
+### Line by line: `src/oidc_login/interfaces/http/templates/error.html`
+
+```html
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+```
+
+Extends the base; the title block and the content block are set. The title and message are passed in by the route.
+
+```html
+<h1>{{ title }}</h1>
+<p>{{ message }}</p>
+<p><a href="/">Back to the start</a></p>
+{% endblock %}
+```
+
+A heading with the title, a paragraph with the message and a link back to the start. Both values are encoded, so even an error message built from input cannot inject markup.
+
+### Line by line: `src/oidc_login/interfaces/http/templates/home.html`
+
+```html
+{% extends "base.html" %}
+{% block content %}
+{% if session %}
+```
+
+Extends the base; `{% if session %}` chooses between the two views by whether the user is signed in.
+
+```html
+<h1>Signed in</h1>
+<p>You are signed in as <strong>{{ session.identity.username }}</strong>.</p>
+<p>Granted scopes: <code>{{ session.scopes | sort | join(" ") }}</code></p>
+<p>The browser holds one opaque cookie. The tokens stay on the server.</p>
+```
+
+The signed-in view: a heading, the username (encoded), the granted scopes (`session.scopes | sort | join(" ")` sorts the set and joins the names with spaces; `|` applies a **filter**) and a sentence saying the browser holds one opaque cookie while the tokens stay on the server.
+
+```html
+<form method="post" action="/logout">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <button type="submit">Sign out</button>
+</form>
+```
+
+A sign-out form that posts to `/logout` with the hidden CSRF token and a submit button.
+
+```html
+{% else %}
+<h1>Sign in</h1>
+<p>Sign-in is handled by the identity provider; this app never sees your password.</p>
+<p><a class="button" href="/login">Sign in</a></p>
+```
+
+`{% else %}`: the signed-out view says sign-in is handled by the identity provider and the app never sees the password, and shows a "Sign in" link to `/login`.
+
+```html
+{% if reports_allowed %}
+<p><a href="/login?scope={{ extra_scope | urlencode }}">Sign in and ask for reports access</a></p>
+{% endif %}
+```
+
+If the reports scope is on the allow-list, a second link `/login?scope=reports:read` (the `urlencode` filter escapes the scope text) asks for reports access.
+
+```html
+{% endif %}
+{% endblock %}
+```
+
+The two `{% endif %}` tags and the end of the content block.
+
 ## Try it yourself
 
 1. See escaping directly:

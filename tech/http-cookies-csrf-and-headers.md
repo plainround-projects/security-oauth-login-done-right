@@ -120,6 +120,85 @@ SECURITY_HEADERS = {
 
 `mismatched_state`, `login_csrf`, `replayed_callback`: a wrong `state` is refused and no session is created; a valid-looking callback in a browser that did not start the login is refused; a successful callback cannot be replayed (the attempt is single-use). `test_no_token_ever_reaches_the_browser` checks that no response contains a token and the cookies hold only opaque ids.
 
+### Line by line: `src/oidc_login/interfaces/http/security.py`
+
+```python
+"""Browser-facing defenses: response headers and the two cookies."""
+```
+
+The docstring: browser-facing defenses, the response headers and the two cookies.
+
+```python
+from __future__ import annotations
+
+from werkzeug.wrappers import Response
+```
+
+Type hints kept as text and Werkzeug's `Response` class.
+
+```python
+SESSION_COOKIE = "__Host-session"
+LOGIN_COOKIE = "__Host-login"
+CSRF_HEADER = "X-CSRF-Token"
+CSRF_FIELD = "csrf_token"
+```
+
+Four names. `SESSION_COOKIE` is `__Host-session` (the signed-in session) and `LOGIN_COOKIE` is `__Host-login` (the short-lived cookie that ties the callback to the browser that started the login). The `__Host-` prefix is a browser rule: such a cookie is accepted only if it is `Secure`, has `Path=/` and no `Domain`. `CSRF_HEADER` and `CSRF_FIELD` are where the CSRF token may arrive.
+
+```python
+# No script, no frames, forms and styles from this origin only. The provider's login page is a different origin and
+# has its own headers.
+CONTENT_SECURITY_POLICY = (
+    "default-src 'none'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+)
+```
+
+The comment: no script, no frames, forms and styles from this origin only; the provider's own login page is a different origin with its own headers. The policy: `default-src 'none'` allows nothing by default; `style-src 'self'` allows this site's stylesheet; `form-action 'self'` lets forms post only back here; `frame-ancestors 'none'` forbids framing; `base-uri 'none'` forbids changing the base address.
+
+```python
+SECURITY_HEADERS: dict[str, str] = {
+    "Content-Security-Policy": CONTENT_SECURITY_POLICY,
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    # The callback URL carries a one-time code; the referrer must never leak it to another site.
+    "Referrer-Policy": "no-referrer",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+    "Cache-Control": "no-store",
+}
+```
+
+`SECURITY_HEADERS` lists nine headers: the policy; `nosniff` (the browser must not guess a content type); `X-Frame-Options: DENY`; `Referrer-Policy: no-referrer` (the comment explains: the callback address carries a one-time code, which the referrer header must never leak to another site); the two cross-origin isolation headers; `Permissions-Policy` turning off camera, microphone and geolocation; `Strict-Transport-Security` for two years (63,072,000 seconds) including sub-domains; and `Cache-Control: no-store`, because pages and the callback must not be kept by caches.
+
+```python
+def apply_security_headers(response: Response) -> Response:
+    """Add the security headers to every response; a handler's own value wins."""
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    return response
+```
+
+`apply_security_headers` adds each header unless the handler already set it (`setdefault`).
+
+```python
+def set_cookie(response: Response, name: str, value: str, *, max_age: int, secure: bool) -> None:
+    """Set an opaque, HttpOnly, SameSite=Lax cookie. The ``__Host-`` prefix makes browsers insist on Secure,
+    ``Path=/`` and no ``Domain``. Lax (not Strict) is needed so the cookie comes back on the provider's redirect."""
+    response.set_cookie(name, value, max_age=max_age, httponly=True, secure=secure, samesite="Lax", path="/")
+```
+
+`set_cookie` sets an opaque cookie with `HttpOnly` (JavaScript cannot read it), `SameSite=Lax`, `Path=/` and the given lifetime and `Secure` flag. The docstring explains why Lax and not Strict: the cookie has to come back on the top-level redirect from the provider, and a Strict cookie would not be sent on that cross-site navigation.
+
+```python
+def clear_cookie(response: Response, name: str, *, secure: bool) -> None:
+    """Expire a cookie in the browser."""
+    response.delete_cookie(name, httponly=True, secure=secure, samesite="Lax", path="/")
+```
+
+`clear_cookie` expires a cookie with the same attributes.
+
 ## Try it yourself
 
 1. Run the HTTP unit tests (no provider):
