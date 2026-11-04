@@ -17,6 +17,8 @@ Nothing imports `interfaces`. `make lint` enforces the direction with import-lin
 
 ## Components
 
+Drawn versions of this figure and of the walk-through: [the architecture](docs/diagrams/architecture.svg) and [one run](docs/diagrams/flow.svg).
+
 ```mermaid
 flowchart LR
     browser["Browser"] -- "1 GET /login" --> app

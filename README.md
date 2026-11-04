@@ -10,6 +10,24 @@ Sign-in for a small server-side app with an identity provider you run yourself (
 | **Architecture** | [ARCHITECTURE.md](ARCHITECTURE.md); decisions: [docs/adr](docs/adr) |
 | **Technology notes** | [tech/](tech/README.md): one beginner-level note per technology used here (OAuth 2.0 and OpenID Connect, PKCE, JWT, Keycloak, Python, Flask, Docker and the rest), written through this repository's own files |
 
+## Architecture
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/architecture-dark.svg">
+  <img alt="A browser talks to a Flask app in one gunicorn process, which hands the flow to LoginService; the user signs in at Keycloak, LoginService exchanges the code, checks tokens against the JWKS keys and keeps them in the session store." src="docs/diagrams/architecture.svg">
+</picture>
+
+Only two opaque cookies reach the browser; every token stays in the server-side session store, and each check has a refusal drawn in amber.
+
+## How one run flows
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/flow-dark.svg">
+  <img alt="The run goes from GET /login through the provider, the callback, the token exchange and validation, to a session, a refresh and a revoking sign-out." src="docs/diagrams/flow.svg">
+</picture>
+
+The amber row shows a callback with the wrong state or from another browser refused with a 400 before the provider is called.
+
 ## Prerequisites
 
 | Tool | Version | Used for |
